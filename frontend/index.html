@@ -2,15 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#1f6f5c">
   <title>Expense Splitter</title>
   <link rel="stylesheet" href="/css/style.css">
   <script type="module" src="/js/app.js"></script>
 </head>
 <body>
-  <main class="container">
-    <h1>Expense Splitter</h1>
-    <p>Server status: <strong id="health-status">checking…</strong></p>
-  </main>
+  <div class="app">
+    <header class="topbar">
+      <a class="brand" id="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">₭</span>
+        <span class="brand-text" id="brand-text">Expense Splitter</span>
+      </a>
+      <span class="group-title" id="group-title"></span>
+      <div class="topbar-actions">
+        <button class="btn-icon" id="share-button" type="button" hidden>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3v13"/><path d="M7 8l5-5 5 5"/><path d="M5 13v8h14v-8"/>
+          </svg>
+        </button>
+        <button class="lang-toggle" id="lang-toggle" type="button">ລາວ</button>
+      </div>
+    </header>
+    <nav class="nav" id="nav" hidden></nav>
+    <main class="main" id="view" tabindex="-1">
+      <noscript><p>Expense Splitter needs JavaScript.</p></noscript>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
