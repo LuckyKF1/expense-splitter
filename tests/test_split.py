@@ -1,6 +1,9 @@
 import unittest
 
+from backend import expenses
 from backend.expenses import split_equally
+
+JS_MAX_SAFE_INTEGER = 2**53 - 1
 
 
 class SplitEquallyTests(unittest.TestCase):
@@ -25,11 +28,19 @@ class SplitEquallyTests(unittest.TestCase):
         self.assertEqual(split_equally(2, [1, 2, 3]), {1: 1, 2: 1, 3: 0})
 
     def test_sum_always_matches_amount(self):
-        for amount in (1, 7, 99, 1000, 1179999, 10**12):
+        for amount in (1, 7, 99, 1000, 1179999, expenses.MAX_AMOUNT):
             for count in range(1, 15):
                 shares = split_equally(amount, list(range(1, count + 1)))
                 self.assertEqual(sum(shares.values()), amount, (amount, count))
                 self.assertLessEqual(max(shares.values()) - min(shares.values()), 1)
+
+
+class LimitTests(unittest.TestCase):
+    def test_largest_possible_group_total_is_exact_in_javascript(self):
+        # The browser sums amounts as JS numbers; above 2**53 - 1 they
+        # silently lose precision, breaking "never off by one Kip".
+        worst_case = expenses.MAX_AMOUNT * expenses.MAX_EXPENSES_PER_GROUP
+        self.assertLessEqual(worst_case, JS_MAX_SAFE_INTEGER)
 
 
 if __name__ == "__main__":

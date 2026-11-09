@@ -81,7 +81,7 @@ class CreateExpenseTests(ExpenseApiTestCase):
         self.assert_invalid("amount", "not_integer", amount=True)
         self.assert_invalid("amount", "out_of_range", amount=0)
         self.assert_invalid("amount", "out_of_range", amount=-5000)
-        self.assert_invalid("amount", "out_of_range", amount=10**12 + 1)
+        self.assert_invalid("amount", "out_of_range", amount=10**11 + 1)
 
     def test_spent_at_must_be_a_real_date(self):
         self.assert_invalid("spent_at", "required", spent_at=None)

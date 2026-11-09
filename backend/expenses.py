@@ -16,7 +16,10 @@ from backend.validation import (clean_text, is_strict_int, require_date,
                                 require_int, validation_error)
 
 DESCRIPTION_MAX = 200
-MAX_AMOUNT = 10**12  # 1 trillion Kip: far above any real bill, catches typos
+# 100 billion Kip: far above any real bill, still catches extra-zero typos.
+# MAX_AMOUNT * MAX_EXPENSES_PER_GROUP must stay <= 2**53 - 1 so group
+# totals are exact in the browser (see tests/test_split.py LimitTests).
+MAX_AMOUNT = 10**11
 MAX_EXPENSES_PER_GROUP = 10_000
 
 UTC_NOW_SQL = "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')"
