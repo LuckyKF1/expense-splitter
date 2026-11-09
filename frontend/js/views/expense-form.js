@@ -12,10 +12,12 @@ import { formatKip, groupDigits, parseKip, todayIso } from "../format.js";
 import { describeError, t } from "../i18n.js";
 import { field, moneyInput } from "./shared.js";
 
+/** Editing: fetch the expense. Adding (no id in the URL): nothing to load. */
+export const loadExpenseForm = (token, [expenseId]) => api.getExpense(token, Number(expenseId));
+
 export async function renderExpenseForm(root, ctx) {
   const group = ctx.group;
-  const expenseId = ctx.params[0] ? Number(ctx.params[0]) : null;
-  const existing = expenseId ? await api.getExpense(group.token, expenseId) : null;
+  const existing = ctx.data ?? null;
   const listPath = `/g/${group.token}/expenses`;
   const title = t(existing ? "form.editTitle" : "form.newTitle");
   document.title = `${title} · ${group.name}`;

@@ -6,12 +6,12 @@ import { api } from "./api.js";
 import { h, icon } from "./dom.js";
 import { describeError, getLang, setLang, t } from "./i18n.js";
 import { rememberGroup } from "./storage.js";
-import { renderExpenseForm } from "./views/expense-form.js";
-import { renderExpenses } from "./views/expenses.js";
+import { loadExpenseForm, renderExpenseForm } from "./views/expense-form.js";
+import { loadExpenses, renderExpenses } from "./views/expenses.js";
 import { renderHome } from "./views/home.js";
 import { renderMembers } from "./views/members.js";
-import { renderSettle } from "./views/settle.js";
-import { renderSummary } from "./views/summary.js";
+import { loadSettle, renderSettle } from "./views/settle.js";
+import { loadSummary, renderSummary } from "./views/summary.js";
 
 const TOKEN = "([A-Za-z0-9_-]{1,64})";
 
@@ -22,14 +22,19 @@ const NAV_ITEMS = [
   { key: "members", suffix: "/members", icon: "members" },
 ];
 
+// `load(token, params)` fetches a screen's data. The router starts it at the
+// same time as the group request, so a screen costs one network round trip
+// instead of two (this matters a lot over the tunnel).
 const ROUTES = [
   { pattern: new RegExp("^/$"), view: renderHome },
-  { pattern: new RegExp(`^/g/${TOKEN}/?$`), view: renderSummary, nav: "summary" },
-  { pattern: new RegExp(`^/g/${TOKEN}/expenses/?$`), view: renderExpenses, nav: "expenses" },
+  { pattern: new RegExp(`^/g/${TOKEN}/?$`), view: renderSummary, load: loadSummary, nav: "summary" },
+  { pattern: new RegExp(`^/g/${TOKEN}/expenses/?$`), view: renderExpenses, load: loadExpenses,
+    nav: "expenses" },
   { pattern: new RegExp(`^/g/${TOKEN}/expenses/new/?$`), view: renderExpenseForm, nav: "expenses" },
   { pattern: new RegExp(`^/g/${TOKEN}/expenses/([0-9]{1,18})/?$`), view: renderExpenseForm,
-    nav: "expenses" },
-  { pattern: new RegExp(`^/g/${TOKEN}/settle/?$`), view: renderSettle, nav: "settle" },
+    load: loadExpenseForm, nav: "expenses" },
+  { pattern: new RegExp(`^/g/${TOKEN}/settle/?$`), view: renderSettle, load: loadSettle,
+    nav: "settle" },
   { pattern: new RegExp(`^/g/${TOKEN}/members/?$`), view: renderMembers, nav: "members" },
 ];
 
@@ -64,12 +69,14 @@ async function render({ focus, quiet = false } = {}) {
   const ctx = makeContext(token, params);
   if (!quiet) shell.main.replaceChildren(h("p", { class: "loading" }, t("status.loading")));
   try {
-    if (token) {
-      ctx.group = await loadGroup(token);
-    } else {
-      currentGroup = null;
-    }
+    // Start both requests now; await them afterwards.
+    const groupRequest = token ? loadGroup(token) : Promise.resolve(null);
+    const dataRequest = route.load ? route.load(token, params) : Promise.resolve(undefined);
+    dataRequest.catch(() => {}); // if the group fails first, that error wins
+    ctx.group = await groupRequest;
+    if (!token) currentGroup = null;
     updateShell(route, ctx.group);
+    ctx.data = await dataRequest;
     await route.view(root, ctx);
   } catch (err) {
     updateShell(route, null);
@@ -91,6 +98,7 @@ function makeContext(token, params) {
   return {
     token,
     params, // extra URL parts, e.g. the expense id
+    data: undefined, // result of the route's load(), if it has one
 
     group: null,
     navigate,

@@ -6,10 +6,12 @@ import { formatKip } from "../format.js";
 import { t } from "../i18n.js";
 import { needMembersCard, unbalancedBanner } from "./shared.js";
 
+export const loadSummary = (token) => api.getSummary(token);
+
 export async function renderSummary(root, ctx) {
   const group = ctx.group;
   document.title = `${t("summary.title")} · ${group.name}`;
-  const summary = await api.getSummary(group.token);
+  const summary = ctx.data;
   const newPath = `/g/${group.token}/expenses/new`;
 
   root.append(h("div", { class: "page-header" },

@@ -7,10 +7,12 @@ import { formatDate, formatKip } from "../format.js";
 import { getLang, t } from "../i18n.js";
 import { needMembersCard } from "./shared.js";
 
+export const loadExpenses = (token) => api.listExpenses(token);
+
 export async function renderExpenses(root, ctx) {
   const group = ctx.group;
   document.title = `${t("expenses.title")} · ${group.name}`;
-  const expenses = await api.listExpenses(group.token);
+  const expenses = ctx.data;
   const names = new Map(group.members.map((m) => [m.id, m.name]));
   const newPath = `/g/${group.token}/expenses/new`;
   const hasMembers = group.members.some((m) => !m.archived);

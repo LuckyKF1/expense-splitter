@@ -6,19 +6,23 @@ import { formatDate, formatKip, parseKip, todayIso } from "../format.js";
 import { describeError, getLang, t } from "../i18n.js";
 import { field, moneyInput, needMembersCard, unbalancedBanner } from "./shared.js";
 
+export async function loadSettle(token) {
+  const [suggestions, history] = await Promise.all([
+    api.getSuggestions(token).catch((err) => {
+      if (err.code === "UNBALANCED_EXPENSES") return { blocked: err.details };
+      throw err;
+    }),
+    api.listSettlements(token),
+  ]);
+  return { suggestions, history };
+}
+
 export async function renderSettle(root, ctx) {
   const group = ctx.group;
   document.title = `${t("settle.title")} · ${group.name}`;
   root.append(h("h1", { class: "page-title" }, t("settle.title")));
   if (!group.members.some((m) => !m.archived)) return root.append(needMembersCard(group.token));
-
-  const [suggestions, history] = await Promise.all([
-    api.getSuggestions(group.token).catch((err) => {
-      if (err.code === "UNBALANCED_EXPENSES") return { blocked: err.details };
-      throw err;
-    }),
-    api.listSettlements(group.token),
-  ]);
+  const { suggestions, history } = ctx.data;
 
   root.append(h("div", { class: "grid grid-main-side" },
     h("div", { class: "stack-lg" },

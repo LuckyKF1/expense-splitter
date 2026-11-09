@@ -9,6 +9,8 @@ directly to the internet.
 """
 
 import argparse
+import base64
+import hashlib
 import json
 import re
 import sys
@@ -34,15 +36,17 @@ CONTENT_TYPES = {
     ".ico": "image/x-icon",
 }
 
+CSP_TEMPLATE = (
+    "default-src 'self'; style-src 'self'; script-src 'self'{extra_script}; "
+    "img-src 'self' data:; frame-ancestors 'none'"
+)
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",  # share tokens live in URLs
-    "Content-Security-Policy": (
-        "default-src 'self'; style-src 'self'; script-src 'self'; "
-        "img-src 'self' data:; frame-ancestors 'none'"
-    ),
+    "Content-Security-Policy": CSP_TEMPLATE.format(extra_script=""),
 }
+IMMUTABLE = "public, max-age=31536000, immutable"
 
 
 # ---- Route handlers --------------------------------------------------------
@@ -187,6 +191,12 @@ COMPILED_ROUTES = [(m, re.compile(f"^{p}$"), h) for m, p, h in ROUTES]
 
 class RequestHandler(BaseHTTPRequestHandler):
     server_version = "ExpenseSplitter"
+    # Keep-alive: over a tunnel each new connection costs a long round trip.
+    # Every response therefore needs Content-Length, and every request body
+    # must be consumed (see discard_unread_body) so the next request on the
+    # same connection is parsed correctly.
+    protocol_version = "HTTP/1.1"
+    timeout = 30  # seconds an idle kept-alive connection may hold a thread
     sys_version = ""  # don't advertise the Python version
 
     def do_GET(self):
@@ -205,14 +215,36 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.dispatch("DELETE")
 
     def dispatch(self, method):
+        self.body_consumed = False
         path = self.path.split("?", 1)[0]
-        if path.startswith("/api/"):
-            self.handle_api(method, path)
-        elif method == "GET":
-            self.serve_static(path)
-        else:
-            self.send_json(HTTPStatus.METHOD_NOT_ALLOWED, error_body(
-                "METHOD_NOT_ALLOWED", "Method not allowed"))
+        try:
+            if path.startswith("/api/"):
+                self.handle_api(method, path)
+            elif method == "GET":
+                self.serve_static(path)
+            else:
+                self.send_json(HTTPStatus.METHOD_NOT_ALLOWED, error_body(
+                    "METHOD_NOT_ALLOWED", "Method not allowed"))
+        finally:
+            self.discard_unread_body()
+
+    def discard_unread_body(self):
+        """Read any body the handler ignored (e.g. a POST to an unknown
+        route), or close the connection if that is not safely possible.
+        Leftover bytes would otherwise be parsed as the next request."""
+        if self.body_consumed:
+            return
+        if "Transfer-Encoding" in self.headers:  # chunked bodies: not supported
+            self.close_connection = True
+            return
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            length = -1
+        if length < 0 or length > MAX_BODY_BYTES:
+            self.close_connection = True
+        elif length:
+            self.rfile.read(length)
 
     # -- API --
 
@@ -249,9 +281,11 @@ class RequestHandler(BaseHTTPRequestHandler):
         except ValueError:
             length = -1
         if length < 0 or length > MAX_BODY_BYTES:
+            self.close_connection = True  # body left unread; can't reuse
             raise ApiError(HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
                            "BODY_TOO_LARGE", "Request body is too large")
         raw = self.rfile.read(length) if length else b""
+        self.body_consumed = True
         try:
             data = json.loads(raw or b"{}")
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -274,21 +308,46 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_plain(HTTPStatus.NOT_FOUND, "Not found")
             return
         body = file_path.read_bytes()
+        csp = None
+        if file_path.name == "index.html":
+            body, import_map = versioned_index(body)
+            digest = base64.b64encode(hashlib.sha256(import_map).digest()).decode()
+            csp = CSP_TEMPLATE.format(extra_script=f" 'sha256-{digest}'")
+
+        # Caching. A URL carrying the file's current version (?v=<hash>,
+        # written into index.html) can be kept forever: new code gets a new
+        # URL. Anything else is "no-cache": kept, but checked with a cheap
+        # 304 each time, so edits show up immediately.
+        query = self.path.partition("?")[2]
+        cache = IMMUTABLE if query == f"v={asset_version(body)}" else "no-cache"
+        etag = f'"{asset_version(body)}"'
+        if etag in self.headers.get("If-None-Match", ""):
+            self.send_response(HTTPStatus.NOT_MODIFIED)
+            self.send_header("ETag", etag)
+            self.send_header("Cache-Control", cache)
+            self.send_common_headers(csp)
+            self.end_headers()
+            return
         content_type = CONTENT_TYPES.get(file_path.suffix, "application/octet-stream")
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
-        # Development-friendly: always fetch fresh files after edits.
-        self.send_header("Cache-Control", "no-cache")
-        self.send_common_headers()
+        self.send_header("ETag", etag)
+        self.send_header("Cache-Control", cache)
+        self.send_common_headers(csp)
         self.end_headers()
         self.wfile.write(body)
 
     # -- Response helpers --
 
-    def send_common_headers(self):
+    def send_common_headers(self, csp=None):
         for name, value in SECURITY_HEADERS.items():
+            if name == "Content-Security-Policy" and csp:
+                value = csp
             self.send_header(name, value)
+        if self.close_connection:
+            # Tell the client up front so it opens a new connection next time.
+            self.send_header("Connection", "close")
 
     def send_json(self, status, payload):
         if payload is None:  # 204 must not carry a body
@@ -319,6 +378,44 @@ def error_body(code, message, details=None):
     return {"error": {"code": code, "message": message, "details": details or {}}}
 
 
+def asset_version(content):
+    """Short content hash: changes whenever the file's bytes change."""
+    return hashlib.sha256(content).hexdigest()[:16]
+
+
+def versioned_index(html):
+    """Rewrite index.html so the browser can cache CSS/JS for good and
+    fetch every module in one parallel round. Built from the files on disk
+    at request time, so it can never go stale and needs no build step.
+
+    - An import map sends each module URL (e.g. /js/format.js, which is
+      where "./format.js" resolves) to /js/format.js?v=<hash>.
+    - <link rel="modulepreload"> for every module, so the browser does not
+      discover imports one level (= one round trip) at a time.
+    - The stylesheet and entry script get ?v= as well.
+
+    Returns (html, import_map_json) so the caller can allow the inline
+    import map in the CSP by its hash.
+    """
+    def url(path):
+        return f"/{path.relative_to(FRONTEND_DIR).as_posix()}?v={asset_version(path.read_bytes())}"
+
+    modules = sorted((FRONTEND_DIR / "js").rglob("*.js"))
+    versioned = {f"/{m.relative_to(FRONTEND_DIR).as_posix()}": url(m) for m in modules}
+    import_map = json.dumps({"imports": versioned}, separators=(",", ":")).encode()
+    preloads = "".join(f'  <link rel="modulepreload" href="{v}">\n' for v in versioned.values())
+    css = url(FRONTEND_DIR / "css" / "style.css")
+
+    head = (b'<script type="importmap">' + import_map + b"</script>\n"
+            + preloads.encode()
+            + f'  <link rel="stylesheet" href="{css}">\n'
+              f'  <script type="module" src="{versioned["/js/app.js"]}"></script>\n'.encode())
+    html = html.replace(b'  <link rel="stylesheet" href="/css/style.css">\n', b"", 1)
+    html = html.replace(b'  <script type="module" src="/js/app.js"></script>\n', b"", 1)
+    # The import map must come before anything that loads a module.
+    return html.replace(b"</head>", b"  " + head + b"</head>", 1), import_map
+
+
 def resolve_static_path(url_path):
     """Map a URL path to a file inside FRONTEND_DIR, or None.
 
@@ -334,9 +431,19 @@ def resolve_static_path(url_path):
     return candidate
 
 
+class Server(ThreadingHTTPServer):
+    daemon_threads = True  # idle keep-alive connections must not block exit
+
+    def handle_error(self, request, client_address):
+        # A client dropping a kept-alive connection is normal, not an error.
+        if isinstance(sys.exc_info()[1], (ConnectionResetError, BrokenPipeError)):
+            return
+        super().handle_error(request, client_address)
+
+
 def make_server(host, port, db_path=database.DEFAULT_DB_PATH):
     database.init_db(db_path)
-    server = ThreadingHTTPServer((host, port), RequestHandler)
+    server = Server((host, port), RequestHandler)
     server.db_path = db_path
     return server
 
