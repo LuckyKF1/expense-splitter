@@ -18,7 +18,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from backend import database, expenses, groups
+from backend import database, expenses, groups, summary
 from backend.errors import ApiError
 
 FRONTEND_DIR = database.PROJECT_ROOT / "frontend"
@@ -127,6 +127,11 @@ def delete_expense(request, token, expense_id):
     return HTTPStatus.NO_CONTENT, None
 
 
+def get_summary(request, token):
+    with request.db() as conn:
+        return HTTPStatus.OK, summary.get_summary(conn, token)
+
+
 TOKEN = r"(?P<token>[A-Za-z0-9_-]{1,64})"
 MEMBER_ID = r"(?P<member_id>[0-9]{1,18})"
 EXPENSE_ID = r"(?P<expense_id>[0-9]{1,18})"
@@ -145,6 +150,7 @@ ROUTES = [
     ("GET", rf"/api/groups/{TOKEN}/expenses/{EXPENSE_ID}", get_expense),
     ("PUT", rf"/api/groups/{TOKEN}/expenses/{EXPENSE_ID}", update_expense),
     ("DELETE", rf"/api/groups/{TOKEN}/expenses/{EXPENSE_ID}", delete_expense),
+    ("GET", rf"/api/groups/{TOKEN}/summary", get_summary),
 ]
 COMPILED_ROUTES = [(m, re.compile(f"^{p}$"), h) for m, p, h in ROUTES]
 
