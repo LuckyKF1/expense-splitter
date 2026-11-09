@@ -18,7 +18,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from backend import database, expenses, groups, summary
+from backend import database, expenses, groups, settle_up, summary
 from backend.errors import ApiError
 
 FRONTEND_DIR = database.PROJECT_ROOT / "frontend"
@@ -132,9 +132,32 @@ def get_summary(request, token):
         return HTTPStatus.OK, summary.get_summary(conn, token)
 
 
+def get_settlement_suggestions(request, token):
+    with request.db() as conn:
+        return HTTPStatus.OK, settle_up.get_suggestions(conn, token)
+
+
+def list_settlements(request, token):
+    with request.db() as conn:
+        return HTTPStatus.OK, settle_up.list_settlements(conn, token)
+
+
+def record_settlement(request, token):
+    data = request.read_json()
+    with request.db() as conn:
+        return HTTPStatus.CREATED, settle_up.record_settlement(conn, token, data)
+
+
+def delete_settlement(request, token, settlement_id):
+    with request.db() as conn:
+        settle_up.delete_settlement(conn, token, int(settlement_id))
+    return HTTPStatus.NO_CONTENT, None
+
+
 TOKEN = r"(?P<token>[A-Za-z0-9_-]{1,64})"
 MEMBER_ID = r"(?P<member_id>[0-9]{1,18})"
 EXPENSE_ID = r"(?P<expense_id>[0-9]{1,18})"
+SETTLEMENT_ID = r"(?P<settlement_id>[0-9]{1,18})"
 
 ROUTES = [
     ("GET", r"/api/health", health),
@@ -151,6 +174,10 @@ ROUTES = [
     ("PUT", rf"/api/groups/{TOKEN}/expenses/{EXPENSE_ID}", update_expense),
     ("DELETE", rf"/api/groups/{TOKEN}/expenses/{EXPENSE_ID}", delete_expense),
     ("GET", rf"/api/groups/{TOKEN}/summary", get_summary),
+    ("GET", rf"/api/groups/{TOKEN}/settlement", get_settlement_suggestions),
+    ("GET", rf"/api/groups/{TOKEN}/settlements", list_settlements),
+    ("POST", rf"/api/groups/{TOKEN}/settlements", record_settlement),
+    ("DELETE", rf"/api/groups/{TOKEN}/settlements/{SETTLEMENT_ID}", delete_settlement),
 ]
 COMPILED_ROUTES = [(m, re.compile(f"^{p}$"), h) for m, p, h in ROUTES]
 

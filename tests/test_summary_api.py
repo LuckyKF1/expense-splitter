@@ -4,7 +4,9 @@ from tests.test_expenses_api import BRIEF_PAYMENTS
 from tests.test_groups_api import GroupApiTestCase
 
 
-class SummaryApiTests(GroupApiTestCase):
+class BriefGroupTestCase(GroupApiTestCase):
+    """A group with the 7 members from the brief (no tests of its own)."""
+
     def setUp(self):
         self.token = self.create_group()["token"]
         self.ids = {name: self.add_member(self.token, name)["id"] for name in BRIEF_PAYMENTS}
@@ -24,6 +26,8 @@ class SummaryApiTests(GroupApiTestCase):
         self.assertEqual(status, 201, body)
         return body
 
+
+class SummaryApiTests(BriefGroupTestCase):
     def test_empty_group(self):
         summary = self.summary()
         self.assertEqual(summary["currency"], "LAK")

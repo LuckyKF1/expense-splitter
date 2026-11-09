@@ -35,3 +35,47 @@ def compute_balances(member_ids, expenses, settlements=()):
     for t in totals.values():
         t["balance"] = t["paid"] - t["share"] + t["settled_out"] - t["settled_in"]
     return totals
+
+
+def suggest_transfers(balances):
+    """Turn {member_id: balance} into a short list of payments.
+
+    Finding the true minimum number of transfers is NP-hard, so this uses
+    a heuristic that is optimal in common cases and never worse than
+    n - 1 transfers:
+      1. Pair a debtor and a creditor with exactly equal amounts
+         (one transfer clears two people).
+      2. Repeatedly let the largest debtor pay the largest creditor.
+         Every step zeroes at least one person, hence <= n - 1 steps.
+    Ties go to the lower member id so the output is deterministic.
+
+    Raises ValueError unless balances sum to zero: suggesting payments
+    for books that do not reconcile would move real money wrongly.
+    """
+    if sum(balances.values()) != 0:
+        raise ValueError("balances must sum to zero before settling")
+
+    debts = {m: -b for m, b in balances.items() if b < 0}
+    credits = {m: b for m, b in balances.items() if b > 0}
+    transfers = []
+
+    def pay(debtor, creditor, amount):
+        transfers.append({"from_member_id": debtor, "to_member_id": creditor,
+                          "amount": amount})
+        debts[debtor] -= amount
+        credits[creditor] -= amount
+        if debts[debtor] == 0:
+            del debts[debtor]
+        if credits[creditor] == 0:
+            del credits[creditor]
+
+    for debtor in sorted(debts):
+        match = next((c for c in sorted(credits) if credits[c] == debts[debtor]), None)
+        if match is not None:
+            pay(debtor, match, debts[debtor])
+
+    while debts:
+        debtor = max(debts, key=lambda m: (debts[m], -m))
+        creditor = max(credits, key=lambda m: (credits[m], -m))
+        pay(debtor, creditor, min(debts[debtor], credits[creditor]))
+    return transfers
