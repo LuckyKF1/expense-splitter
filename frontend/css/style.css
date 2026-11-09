@@ -1,0 +1,32 @@
+/* Mobile-first base. Layout for tablet/desktop arrives in Phase 6. */
+:root {
+  --font-sans: "Noto Sans Lao", "Phetsarath OT", "Saysettha OT", system-ui,
+    -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-bg: #f7f7f5;
+  --color-surface: #ffffff;
+  --color-text: #1d1d1b;
+  --color-muted: #6b6b66;
+  --color-primary: #1f6f5c;
+  --color-danger: #b3261e;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --radius: 12px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-3);
+}
