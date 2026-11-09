@@ -43,6 +43,30 @@ class SchemaTests(DatabaseTestCase):
         database.init_db(self.db_path)  # must not fail or re-run migrations
         self.assertEqual(database.schema_version(self.conn), len(database.MIGRATIONS))
 
+    def test_upgrades_existing_v1_database_keeping_data(self):
+        path = Path(self.tmp.name) / "v1.db"
+        conn = sqlite3.connect(path)
+        conn.executescript(database.MIGRATIONS[0] + "PRAGMA user_version = 1;")
+        conn.execute("INSERT INTO groups (name, share_token) VALUES ('Trip', 'tok')")
+        conn.commit()
+        conn.close()
+
+        database.init_db(path)
+
+        conn = database.connect(path)
+        self.addCleanup(conn.close)
+        self.assertEqual(database.schema_version(conn), len(database.MIGRATIONS))
+        self.assertEqual(conn.execute("SELECT name FROM groups").fetchone()[0], "Trip")
+
+    def test_member_names_unique_ignoring_case(self):
+        group_id = self.conn.execute(
+            "INSERT INTO groups (name, share_token) VALUES ('Trip', 'tok') RETURNING id"
+        ).fetchone()[0]
+        self.conn.execute("INSERT INTO members (group_id, name) VALUES (?, 'Luck')", (group_id,))
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.conn.execute("INSERT INTO members (group_id, name) VALUES (?, 'luck')",
+                              (group_id,))
+
     def test_foreign_keys_enabled(self):
         self.assertEqual(self.conn.execute("PRAGMA foreign_keys").fetchone()[0], 1)
 

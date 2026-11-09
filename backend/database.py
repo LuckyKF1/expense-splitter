@@ -88,6 +88,13 @@ MIGRATIONS = [
     CREATE INDEX idx_shares_member     ON expense_shares (member_id);
     CREATE INDEX idx_settlements_group ON settlements (group_id);
     """,
+    # v2: member names are unique per group regardless of letter case,
+    # so "Luck" and "luck" cannot both exist (NOCASE folds ASCII only;
+    # Lao has no letter case, so nothing is lost there).
+    """
+    CREATE UNIQUE INDEX ux_members_group_name_nocase
+        ON members (group_id, name COLLATE NOCASE);
+    """,
 ]
 
 

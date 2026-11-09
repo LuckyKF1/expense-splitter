@@ -13,11 +13,13 @@ import json
 import re
 import sys
 import traceback
+from contextlib import closing
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from backend import database
+from backend import database, groups
+from backend.errors import ApiError
 
 FRONTEND_DIR = database.PROJECT_ROOT / "frontend"
 MAX_BODY_BYTES = 64 * 1024
@@ -43,33 +45,72 @@ SECURITY_HEADERS = {
 }
 
 
-class ApiError(Exception):
-    """An error with a stable machine-readable code for the frontend."""
-
-    def __init__(self, status, code, message, details=None):
-        super().__init__(message)
-        self.status = status
-        self.code = code
-        self.message = message
-        self.details = details or {}
-
-
 # ---- Route handlers --------------------------------------------------------
 # Each handler receives (request, **path_params) and returns
-# (status, payload). Feature modules will add routes in later phases.
+# (status, payload); a payload of None means "204 No Content".
+# Handlers only translate HTTP <-> function calls; the logic lives in
+# feature modules such as groups.py.
 
 
 def health(request):
-    conn = request.open_db()
-    try:
+    with request.db() as conn:
         version = database.schema_version(conn)
-    finally:
-        conn.close()
     return HTTPStatus.OK, {"status": "ok", "schema_version": version}
 
 
+def create_group(request):
+    data = request.read_json()
+    with request.db() as conn:
+        return HTTPStatus.CREATED, groups.create_group(conn, data)
+
+
+def get_group(request, token):
+    with request.db() as conn:
+        return HTTPStatus.OK, groups.get_group(conn, token)
+
+
+def rename_group(request, token):
+    data = request.read_json()
+    with request.db() as conn:
+        return HTTPStatus.OK, groups.rename_group(conn, token, data)
+
+
+def delete_group(request, token):
+    with request.db() as conn:
+        groups.delete_group(conn, token)
+    return HTTPStatus.NO_CONTENT, None
+
+
+def add_member(request, token):
+    data = request.read_json()
+    with request.db() as conn:
+        return HTTPStatus.CREATED, groups.add_member(conn, token, data)
+
+
+def update_member(request, token, member_id):
+    data = request.read_json()
+    with request.db() as conn:
+        return HTTPStatus.OK, groups.update_member(conn, token, int(member_id), data)
+
+
+def delete_member(request, token, member_id):
+    with request.db() as conn:
+        groups.delete_member(conn, token, int(member_id))
+    return HTTPStatus.NO_CONTENT, None
+
+
+TOKEN = r"(?P<token>[A-Za-z0-9_-]{1,64})"
+MEMBER_ID = r"(?P<member_id>[0-9]{1,18})"
+
 ROUTES = [
     ("GET", r"/api/health", health),
+    ("POST", r"/api/groups", create_group),
+    ("GET", rf"/api/groups/{TOKEN}", get_group),
+    ("PATCH", rf"/api/groups/{TOKEN}", rename_group),
+    ("DELETE", rf"/api/groups/{TOKEN}", delete_group),
+    ("POST", rf"/api/groups/{TOKEN}/members", add_member),
+    ("PATCH", rf"/api/groups/{TOKEN}/members/{MEMBER_ID}", update_member),
+    ("DELETE", rf"/api/groups/{TOKEN}/members/{MEMBER_ID}", delete_member),
 ]
 COMPILED_ROUTES = [(m, re.compile(f"^{p}$"), h) for m, p, h in ROUTES]
 
@@ -154,8 +195,9 @@ class RequestHandler(BaseHTTPRequestHandler):
                            "Request body must be a JSON object")
         return data
 
-    def open_db(self):
-        return database.connect(self.server.db_path)
+    def db(self):
+        """One connection per request, always closed (use with `with`)."""
+        return closing(database.connect(self.server.db_path))
 
     # -- Static files --
 
@@ -182,6 +224,11 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_header(name, value)
 
     def send_json(self, status, payload):
+        if payload is None:  # 204 must not carry a body
+            self.send_response(HTTPStatus.NO_CONTENT)
+            self.send_common_headers()
+            self.end_headers()
+            return
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
