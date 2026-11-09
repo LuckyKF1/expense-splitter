@@ -171,11 +171,17 @@ shell.langButton.addEventListener("click", () => {
 
 shell.shareButton.addEventListener("click", () => shareGroupLink());
 
+const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
+
 /** Native share sheet on phones, clipboard elsewhere, raw URL as last resort. */
 async function shareGroupLink() {
   if (!currentGroup) return;
   // Built from the current origin, so it is right behind any tunnel URL.
   const url = `${location.origin}/g/${currentGroup.token}`;
+  if (LOCAL_HOSTS.includes(location.hostname)) {
+    // A 127.0.0.1 link only works on this computer; sharing it would fail.
+    return toast(t("status.localOnly"), { error: true, duration: 12000 });
+  }
   if (navigator.share) {
     try {
       return await navigator.share({ title: currentGroup.name, url });

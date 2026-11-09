@@ -1,5 +1,9 @@
 // "/g/:token/expenses/new" and "/g/:token/expenses/:id" — add or edit.
 // Raw typed text lives in the inputs; expense-model.js interprets it.
+//
+// "Who paid?" has two modes. Single (the usual case): tap one name and
+// that person paid the whole amount. Multi: type each person's amount,
+// for bills several people chipped in on.
 
 import { api } from "../api.js";
 import { h, icon } from "../dom.js";
@@ -31,10 +35,18 @@ export async function renderExpenseForm(root, ctx) {
     value: existing?.description ?? "", placeholder: t("form.descriptionPlaceholder"),
   });
   const amount = moneyInput("expense-amount", existing?.amount);
+  amount.classList.add("input-large");
   const spentAt = h("input", {
     id: "expense-date", class: "input", type: "date", required: true,
     value: existing?.spent_at ?? todayIso(),
   });
+
+  let multiPayer = (existing?.payers.length ?? 0) > 1;
+  const singleOnly = existing?.payers.length === 1 ? existing.payers[0].member_id : null;
+  const payerRadios = new Map(members.map((m) => [m.id, h("input", {
+    type: "radio", name: "single-payer", class: "chip-input", value: m.id,
+    checked: m.id === singleOnly,
+  })]));
 
   const payerInputs = new Map(members.map((m) =>
     [m.id, moneyInput(`payer-${m.id}`, paidBy.get(m.id), `${t("field.payers")}: ${m.name}`)]));
@@ -89,6 +101,38 @@ export async function renderExpenseForm(root, ctx) {
   for (const input of payerInputs.values()) input.addEventListener("input", updatePayment);
   for (const box of checkboxes.values()) box.addEventListener("change", updatePreview);
 
+  function chosenPayer() {
+    return members.find((m) => payerRadios.get(m.id).checked) ?? null;
+  }
+
+  /** What buildExpense sees, in either mode. */
+  function payerLines() {
+    if (multiPayer) {
+      return members.map((m) => ({ memberId: m.id, name: m.name, amount: payerInputs.get(m.id).value }));
+    }
+    const payer = chosenPayer();
+    return payer ? [{ memberId: payer.id, name: payer.name, amount: amount.value }] : [];
+  }
+
+  function setMultiPayer(on) {
+    if (on && !multiPayer) {
+      // Carry the single choice over: that person paid the full amount so far.
+      const payer = chosenPayer();
+      const total = parseKip(amount.value);
+      for (const [id, input] of payerInputs) {
+        input.value = payer && id === payer.id && total ? groupDigits(total) : "";
+      }
+    } else if (!on && multiPayer) {
+      const paying = members.filter((m) => payerInputs.get(m.id).value.trim());
+      for (const [id, radio] of payerRadios) radio.checked = paying.length === 1 && paying[0].id === id;
+    }
+    multiPayer = on;
+    singleBlock.hidden = on;
+    multiBlock.hidden = !on;
+    modeToggle.textContent = t(on ? "form.singlePayer" : "form.multiPayers");
+    updatePayment();
+  }
+
   function payAll(memberId) {
     const total = parseKip(amount.value);
     for (const [id, input] of payerInputs) {
@@ -111,7 +155,7 @@ export async function renderExpenseForm(root, ctx) {
       description: description.value,
       amount: amount.value,
       spentAt: spentAt.value,
-      payers: members.map((m) => ({ memberId: m.id, name: m.name, amount: payerInputs.get(m.id).value })),
+      payers: payerLines(),
       participants: selectedIds(),
     });
     if (result.error) return showError(result.error);
@@ -135,8 +179,10 @@ export async function renderExpenseForm(root, ctx) {
 
   function showError({ key, params, field }) {
     const fieldName = params.fieldKey ? t(params.fieldKey) : undefined;
-    formError.textContent = t(key, { ...params, field: fieldName });
-    const target = { description, amount, payers: [...payerInputs.values()][0] }[field];
+    const message = key === "form.needPayer" && !multiPayer ? "form.choosePayer" : key;
+    formError.textContent = t(message, { ...params, field: fieldName });
+    const firstPayer = multiPayer ? [...payerInputs.values()][0] : [...payerRadios.values()][0];
+    const target = { description, amount, payers: firstPayer }[field];
     target?.focus();
   }
 
@@ -152,29 +198,44 @@ export async function renderExpenseForm(root, ctx) {
   // ---- Layout -------------------------------------------------------------------------
   const submit = h("button", { class: "btn btn-primary", type: "submit" }, t("action.save"));
 
+  const singleBlock = h("div", { class: "chips", role: "radiogroup", "aria-label": t("form.whoPaid") },
+    members.map((m) =>
+      h("label", { class: "chip" }, payerRadios.get(m.id),
+        h("span", { class: "chip-body" },
+          h("span", { class: "chip-check" }, icon("check")),
+          h("span", { class: "chip-name" }, m.name)))));
+
+  const multiBlock = h("div", { class: "stack-sm" },
+    h("p", { class: "muted small" }, t("form.payersHint")),
+    h("ul", { class: "list payer-list" }, members.map((m) =>
+      h("li", { class: "payer-row" },
+        h("label", { class: "payer-name", for: `payer-${m.id}` }, m.name),
+        payerInputs.get(m.id),
+        h("button", {
+          class: "btn btn-small", type: "button", onClick: () => payAll(m.id),
+          "aria-label": t("form.paidAllLabel", { name: m.name }),
+        }, t("form.paidAll"))))),
+    paymentLine);
+
+  const modeToggle = h("button", {
+    class: "btn btn-small btn-link", type: "button", onClick: () => setMultiPayer(!multiPayer),
+  });
+
   root.append(
     h("div", { class: "page-header" },
       h("a", { class: "btn-icon", href: listPath, "aria-label": t("action.back"), title: t("action.back") },
         icon("back")),
       h("h1", { class: "page-title grow" }, title)),
     h("form", { class: "card form-card", onSubmit, novalidate: true },
+      // Most important first: how much, for what, who paid.
+      field("expense-amount", t("field.amount"), amount, t("form.amountHint")),
       field("expense-description", t("field.description"), description),
-      h("div", { class: "grid grid-2 grid-tight" },
-        field("expense-amount", t("field.amount"), amount, t("form.amountHint")),
-        field("expense-date", t("field.spent_at"), spentAt)),
 
       h("fieldset", { class: "fieldset" },
-        h("legend", { class: "label" }, t("field.payers")),
-        h("p", { class: "muted small" }, t("form.payersHint")),
-        h("ul", { class: "list payer-list" }, members.map((m) =>
-          h("li", { class: "payer-row" },
-            h("label", { class: "payer-name", for: `payer-${m.id}` }, m.name),
-            payerInputs.get(m.id),
-            h("button", {
-              class: "btn btn-small", type: "button", onClick: () => payAll(m.id),
-              "aria-label": t("form.paidAllLabel", { name: m.name }),
-            }, t("form.paidAll"))))),
-        paymentLine),
+        h("legend", { class: "label" }, t("form.whoPaid")),
+        singleBlock,
+        multiBlock,
+        h("div", {}, modeToggle)),
 
       h("fieldset", { class: "fieldset" },
         h("legend", { class: "label" }, t("field.participants")),
@@ -191,6 +252,8 @@ export async function renderExpenseForm(root, ctx) {
               shareLabels.get(m.id))))),
         previewLine),
 
+      h("div", { class: "date-field" }, field("expense-date", t("field.spent_at"), spentAt)),
+
       formError,
       h("div", { class: "form-actions" },
         submit,
@@ -198,5 +261,8 @@ export async function renderExpenseForm(root, ctx) {
         existing && h("button", { class: "btn btn-danger push-end", type: "button", onClick: onDelete },
           icon("trash"), t("action.delete")))),
   );
+  setMultiPayer(multiPayer);
   updateAll();
+  // The router attaches `root` after this function returns; focus then.
+  if (!existing) setTimeout(() => amount.focus(), 0);
 }
