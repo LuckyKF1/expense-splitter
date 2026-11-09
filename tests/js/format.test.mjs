@@ -1,23 +1,29 @@
-// Run: node --test tests/js/
+// Run: node --test "tests/js/*.test.mjs"
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { formatKip, parseKip, splitEqually, todayIso } from "../../frontend/js/format.js";
 
+const NBSP = "\u00a0";
+
+test("formatKip keeps the Kip sign on the same line", () => {
+  assert.ok(formatKip(5).includes(NBSP));
+});
+
 test("formatKip groups thousands and adds the Kip sign", () => {
-  assert.equal(formatKip(1180000), "1,180,000 ₭");
-  assert.equal(formatKip(0), "0 ₭");
-  assert.equal(formatKip(999), "999 ₭");
-  assert.equal(formatKip(100000000000), "100,000,000,000 ₭");
+  assert.equal(formatKip(1180000), `1,180,000${NBSP}₭`);
+  assert.equal(formatKip(0), `0${NBSP}₭`);
+  assert.equal(formatKip(999), `999${NBSP}₭`);
+  assert.equal(formatKip(100000000000), `100,000,000,000${NBSP}₭`);
 });
 
 test("formatKip shows negatives with a real minus sign", () => {
-  assert.equal(formatKip(-168571), "−168,571 ₭");
+  assert.equal(formatKip(-168571), `−168,571${NBSP}₭`);
 });
 
 test("formatKip can show an explicit plus for balances", () => {
-  assert.equal(formatKip(511428, { signed: true }), "+511,428 ₭");
-  assert.equal(formatKip(0, { signed: true }), "0 ₭");
+  assert.equal(formatKip(511428, { signed: true }), `+511,428${NBSP}₭`);
+  assert.equal(formatKip(0, { signed: true }), `0${NBSP}₭`);
 });
 
 test("parseKip accepts digits with separators and spaces", () => {

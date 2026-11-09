@@ -5,6 +5,7 @@ import { api } from "../api.js";
 import { h, icon } from "../dom.js";
 import { formatDate, formatKip } from "../format.js";
 import { getLang, t } from "../i18n.js";
+import { needMembersCard } from "./shared.js";
 
 export async function renderExpenses(root, ctx) {
   const group = ctx.group;
@@ -25,10 +26,7 @@ export async function renderExpenses(root, ctx) {
       icon("plus"), t("expenses.add")));
 
   if (!hasMembers) {
-    root.append(header, h("section", { class: "card state-card" },
-      h("p", {}, t("expenses.needMembers")),
-      h("a", { class: "btn btn-primary", href: `/g/${group.token}/members` },
-        t("expenses.goToMembers"))));
+    root.append(header, needMembersCard(group.token));
     return;
   }
 

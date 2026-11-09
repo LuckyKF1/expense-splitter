@@ -10,6 +10,8 @@ import { renderExpenseForm } from "./views/expense-form.js";
 import { renderExpenses } from "./views/expenses.js";
 import { renderHome } from "./views/home.js";
 import { renderMembers } from "./views/members.js";
+import { renderSettle } from "./views/settle.js";
+import { renderSummary } from "./views/summary.js";
 
 const TOKEN = "([A-Za-z0-9_-]{1,64})";
 
@@ -22,12 +24,12 @@ const NAV_ITEMS = [
 
 const ROUTES = [
   { pattern: new RegExp("^/$"), view: renderHome },
-  { pattern: new RegExp(`^/g/${TOKEN}/?$`), view: renderComingSoon, nav: "summary" },
+  { pattern: new RegExp(`^/g/${TOKEN}/?$`), view: renderSummary, nav: "summary" },
   { pattern: new RegExp(`^/g/${TOKEN}/expenses/?$`), view: renderExpenses, nav: "expenses" },
   { pattern: new RegExp(`^/g/${TOKEN}/expenses/new/?$`), view: renderExpenseForm, nav: "expenses" },
   { pattern: new RegExp(`^/g/${TOKEN}/expenses/([0-9]{1,18})/?$`), view: renderExpenseForm,
     nav: "expenses" },
-  { pattern: new RegExp(`^/g/${TOKEN}/settle/?$`), view: renderComingSoon, nav: "settle" },
+  { pattern: new RegExp(`^/g/${TOKEN}/settle/?$`), view: renderSettle, nav: "settle" },
   { pattern: new RegExp(`^/g/${TOKEN}/members/?$`), view: renderMembers, nav: "members" },
 ];
 
@@ -138,11 +140,6 @@ function errorState(err) {
       ? h("a", { class: "btn btn-primary", href: "/" }, t("action.back"))
       : h("button", { class: "btn btn-primary", type: "button", onClick: () => render() },
         t("action.retry")));
-}
-
-async function renderComingSoon(root) {
-  root.append(h("section", { class: "card state-card" },
-    h("p", { class: "muted" }, t("status.comingSoon"))));
 }
 
 // ---- Navigation ----------------------------------------------------------------

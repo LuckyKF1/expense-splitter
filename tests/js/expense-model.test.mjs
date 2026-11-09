@@ -69,5 +69,20 @@ test("sharePreview explains the equal split and the leftover Kip", () => {
 
 test("formatDate shows a readable local date", () => {
   assert.equal(formatDate("2026-11-09", "en"), "9 Nov 2026");
-  assert.ok(formatDate("2026-11-09", "lo").includes("2026"));
+});
+
+test("formatDate writes Lao months itself (many browsers lack Lao Intl data)", () => {
+  // Simulate Chrome: no Lao locale data, so "lo" silently falls back to English.
+  const RealDateTimeFormat = Intl.DateTimeFormat;
+  Intl.DateTimeFormat = function (locale, options) {
+    const usable = String(locale).startsWith("lo") ? "en-US" : locale;
+    return new RealDateTimeFormat(usable, options);
+  };
+  try {
+    assert.equal(formatDate("2026-11-09", "lo"), "9 ພ.ຈ. 2026");
+    assert.equal(formatDate("2026-01-31", "lo"), "31 ມ.ກ. 2026");
+    assert.equal(formatDate("2026-12-01", "lo"), "1 ທ.ວ. 2026");
+  } finally {
+    Intl.DateTimeFormat = RealDateTimeFormat;
+  }
 });

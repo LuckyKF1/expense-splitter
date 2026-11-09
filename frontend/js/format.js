@@ -8,11 +8,14 @@ export function groupDigits(amount) {
   return String(Math.abs(amount)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-/** 1180000 -> "1,180,000 ₭"; negatives use a real minus sign (−). */
+/**
+ * 1180000 -> "1,180,000 ₭"; negatives use a real minus sign (−).
+ * The space is non-breaking so "₭" never wraps onto its own line.
+ */
 export function formatKip(amount, { signed = false } = {}) {
   const digits = groupDigits(amount);
   const sign = amount < 0 ? "−" : signed && amount > 0 ? "+" : "";
-  return `${sign}${digits} ₭`;
+  return `${sign}${digits}\u00a0₭`;
 }
 
 /**
@@ -43,11 +46,17 @@ export function splitEqually(amount, memberIds) {
   return shares;
 }
 
-/** "2026-11-09" -> "9 Nov 2026" (en) or the Lao equivalent. */
+// Standard Lao month abbreviations (CLDR). Written out here because many
+// browsers, including Chrome, ship no Lao Intl data and fall back to English.
+const LAO_MONTHS = ["ມ.ກ.", "ກ.ພ.", "ມ.ນ.", "ມ.ສ.", "ພ.ພ.", "ມິ.ຖ.",
+  "ກ.ລ.", "ສ.ຫ.", "ກ.ຍ.", "ຕ.ລ.", "ພ.ຈ.", "ທ.ວ."];
+
+/** "2026-11-09" -> "9 Nov 2026" (en) or "9 ພ.ຈ. 2026" (lo). */
 export function formatDate(iso, lang) {
   const [year, month, day] = iso.split("-").map(Number);
+  if (lang === "lo") return `${day} ${LAO_MONTHS[month - 1]} ${year}`;
   const date = new Date(year, month - 1, day); // local midnight, no UTC shift
-  return new Intl.DateTimeFormat(lang === "lo" ? "lo-LA" : "en-GB",
+  return new Intl.DateTimeFormat("en-GB",
     { day: "numeric", month: "short", year: "numeric" }).format(date);
 }
 

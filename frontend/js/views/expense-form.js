@@ -6,6 +6,7 @@ import { h, icon } from "../dom.js";
 import { buildExpense, paymentStatus, sharePreview } from "../expense-model.js";
 import { formatKip, groupDigits, parseKip, todayIso } from "../format.js";
 import { describeError, t } from "../i18n.js";
+import { field, moneyInput } from "./shared.js";
 
 export async function renderExpenseForm(root, ctx) {
   const group = ctx.group;
@@ -198,24 +199,4 @@ export async function renderExpenseForm(root, ctx) {
           icon("trash"), t("action.delete")))),
   );
   updateAll();
-}
-
-function field(id, label, input, hint) {
-  return h("div", { class: "stack-sm" },
-    h("label", { class: "label", for: id }, label),
-    input,
-    hint && h("p", { class: "muted small" }, hint));
-}
-
-/** Text input for Kip: numeric keypad on phones, reformatted on blur. */
-function moneyInput(id, value, ariaLabel) {
-  const input = h("input", {
-    id, class: "input input-money", inputmode: "numeric", autocomplete: "off",
-    value: value ? groupDigits(value) : "", "aria-label": ariaLabel, placeholder: "0",
-  });
-  input.addEventListener("blur", () => {
-    const parsed = parseKip(input.value);
-    if (parsed !== null && input.value.trim()) input.value = groupDigits(parsed);
-  });
-  return input;
 }
