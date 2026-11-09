@@ -18,7 +18,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from backend import database, groups
+from backend import database, expenses, groups
 from backend.errors import ApiError
 
 FRONTEND_DIR = database.PROJECT_ROOT / "frontend"
@@ -99,8 +99,37 @@ def delete_member(request, token, member_id):
     return HTTPStatus.NO_CONTENT, None
 
 
+def list_expenses(request, token):
+    with request.db() as conn:
+        return HTTPStatus.OK, expenses.list_expenses(conn, token)
+
+
+def create_expense(request, token):
+    data = request.read_json()
+    with request.db() as conn:
+        return HTTPStatus.CREATED, expenses.create_expense(conn, token, data)
+
+
+def get_expense(request, token, expense_id):
+    with request.db() as conn:
+        return HTTPStatus.OK, expenses.get_expense(conn, token, int(expense_id))
+
+
+def update_expense(request, token, expense_id):
+    data = request.read_json()
+    with request.db() as conn:
+        return HTTPStatus.OK, expenses.update_expense(conn, token, int(expense_id), data)
+
+
+def delete_expense(request, token, expense_id):
+    with request.db() as conn:
+        expenses.delete_expense(conn, token, int(expense_id))
+    return HTTPStatus.NO_CONTENT, None
+
+
 TOKEN = r"(?P<token>[A-Za-z0-9_-]{1,64})"
 MEMBER_ID = r"(?P<member_id>[0-9]{1,18})"
+EXPENSE_ID = r"(?P<expense_id>[0-9]{1,18})"
 
 ROUTES = [
     ("GET", r"/api/health", health),
@@ -111,6 +140,11 @@ ROUTES = [
     ("POST", rf"/api/groups/{TOKEN}/members", add_member),
     ("PATCH", rf"/api/groups/{TOKEN}/members/{MEMBER_ID}", update_member),
     ("DELETE", rf"/api/groups/{TOKEN}/members/{MEMBER_ID}", delete_member),
+    ("GET", rf"/api/groups/{TOKEN}/expenses", list_expenses),
+    ("POST", rf"/api/groups/{TOKEN}/expenses", create_expense),
+    ("GET", rf"/api/groups/{TOKEN}/expenses/{EXPENSE_ID}", get_expense),
+    ("PUT", rf"/api/groups/{TOKEN}/expenses/{EXPENSE_ID}", update_expense),
+    ("DELETE", rf"/api/groups/{TOKEN}/expenses/{EXPENSE_ID}", delete_expense),
 ]
 COMPILED_ROUTES = [(m, re.compile(f"^{p}$"), h) for m, p, h in ROUTES]
 

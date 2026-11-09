@@ -1,5 +1,4 @@
 import json
-import sqlite3
 import unittest
 
 from tests.test_server import ServerTestCase
@@ -173,20 +172,11 @@ class MemberTests(GroupApiTestCase):
         self.assertEqual(len(self.members()), 1)
 
     def insert_expense_paid_by(self, member_id):
-        # The expense API arrives in Phase 3; insert directly for now.
-        conn = sqlite3.connect(self.httpd.db_path)
-        try:
-            with conn:
-                group_id = conn.execute(
-                    "SELECT group_id FROM members WHERE id = ?", (member_id,)).fetchone()[0]
-                expense_id = conn.execute(
-                    "INSERT INTO expenses (group_id, description, amount, spent_at) "
-                    "VALUES (?, 'Dinner', 1000, '2026-11-09') RETURNING id",
-                    (group_id,)).fetchone()[0]
-                conn.execute("INSERT INTO expense_payers VALUES (?, ?, 1000)",
-                             (expense_id, member_id))
-        finally:
-            conn.close()
+        status, body = self.call("POST", f"/groups/{self.token}/expenses", {
+            "description": "Dinner", "amount": 1000, "spent_at": "2026-11-09",
+            "payers": [{"member_id": member_id, "amount": 1000}],
+            "participants": [member_id]})
+        self.assertEqual(status, 201, body)
 
 
 if __name__ == "__main__":
