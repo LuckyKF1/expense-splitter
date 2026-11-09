@@ -429,6 +429,212 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .share-block { padding-top: var(--space-2); border-top: 1px solid var(--color-border); }
 
+/* ---- Page header & floating action ------------------------------------------------------ */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.page-title { font-size: 22px; line-height: 1.35; }
+
+@media (max-width: 767px) { .hide-phone { display: none !important; } }
+
+/* Phone-only "+" within thumb reach, above the bottom nav. */
+.fab {
+  position: fixed;
+  right: var(--space-4);
+  bottom: calc(var(--nav-height) + var(--safe-bottom) + var(--space-4));
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.2);
+}
+.fab .icon { width: 26px; height: 26px; }
+@media (min-width: 768px) { .fab { display: none; } }
+
+.badge-warning { background: var(--color-warning-soft); color: var(--color-warning-text); }
+
+/* ---- Expense table: cards on phones, table from tablet up -------------------------------- */
+.expense-table { width: 100%; border-collapse: collapse; }
+.expense-table thead { display: none; }
+.expense-table tbody { display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* Phone card:  [description ............ amount]
+                [date · paid by · people   badge ] */
+.expense-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "desc desc desc amount"
+    "date payers split amount";
+  align-items: baseline;
+  column-gap: var(--space-2);
+  row-gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.expense-row td { padding: 0; min-width: 0; }
+.expense-row .cell-desc { grid-area: desc; font-weight: 600; }
+.expense-row .cell-amount { grid-area: amount; align-self: start; text-align: right; }
+.expense-row .cell-date { grid-area: date; white-space: nowrap; }
+.expense-row .cell-payers { grid-area: payers; white-space: nowrap; }
+.expense-row .cell-split { grid-area: split; white-space: nowrap; }
+.expense-row .cell-date,
+.expense-row .cell-payers,
+.expense-row .cell-split { color: var(--color-muted); font-size: 14px; }
+.expense-row .cell-payers::before,
+.expense-row .cell-split::before { content: "·"; margin-right: var(--space-2); }
+.expense-row.is-unbalanced { border-color: var(--color-warning-text); }
+
+.row-link { color: inherit; text-decoration: none; overflow-wrap: anywhere; }
+.amount { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cell-amount .badge { display: block; margin-top: var(--space-1); }
+.num { text-align: right; }
+
+@media (min-width: 768px) {
+  .expense-table {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .expense-table thead { display: table-header-group; }
+  .expense-table tbody { display: table-row-group; }
+  .expense-table th {
+    padding: var(--space-3) var(--space-4);
+    text-align: left;
+    font-size: 13px;
+    color: var(--color-muted);
+    background: var(--color-surface-2);
+  }
+  .expense-table th.num { text-align: right; }
+  .expense-row {
+    display: table-row;
+    border: 0;
+    border-radius: 0;
+  }
+  .expense-row td {
+    padding: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--color-border);
+    vertical-align: top;
+  }
+  .expense-row .cell-date,
+  .expense-row .cell-payers,
+  .expense-row .cell-split { font-size: 15px; }
+  .expense-row .cell-date { white-space: nowrap; }
+  .expense-row .cell-payers::before,
+  .expense-row .cell-split::before { content: none; }
+  .expense-row:hover td { background: var(--color-surface-2); }
+  .expense-row.is-unbalanced td:first-child { box-shadow: inset 4px 0 var(--color-warning-text); }
+}
+
+/* ---- Expense form -------------------------------------------------------------------------- */
+.form-card { gap: var(--space-5); max-width: 760px; }
+.grid-tight { gap: var(--space-3); }
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.fieldset legend { padding: 0; }
+.payer-list { max-width: 520px; }
+
+.payer-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 9.5rem) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+}
+.payer-name { overflow-wrap: anywhere; }
+.input-money { text-align: right; font-variant-numeric: tabular-nums; }
+
+.btn-small {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  font-size: 14px;
+}
+/* Keep a 44px touch target even when the button looks small. */
+@media (pointer: coarse) { .btn-small { min-height: var(--tap); } }
+
+.button-pair { display: flex; gap: var(--space-2); }
+
+.form-status { font-size: 14px; color: var(--color-muted); }
+.form-status:empty { display: none; }
+.form-status.is-ok { color: var(--color-positive); }
+.form-status.is-warning {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+}
+
+.form-error {
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+.form-error:empty { display: none; }
+
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.chip { position: relative; }
+.chip-input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.chip-body {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  cursor: pointer;
+}
+.chip-check { display: none; }
+.chip-check .icon { width: 18px; height: 18px; }
+.chip-share { color: var(--color-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.chip-share:empty { display: none; }
+.chip-input:checked + .chip-body {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.chip-input:checked + .chip-body .chip-check { display: inline-flex; color: var(--color-primary); }
+.chip-input:not(:checked) + .chip-body .chip-name { color: var(--color-muted); }
+.chip-input:focus-visible + .chip-body { outline: 3px solid var(--color-primary); outline-offset: 2px; }
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+.form-actions .btn-primary { flex: 1 1 auto; }
+@media (min-width: 768px) { .form-actions .btn-primary { flex: 0 0 auto; min-width: 140px; } }
+.push-end { margin-left: auto; }
+.form-actions .btn-danger { align-self: auto; }
+
 /* ---- Toast ---------------------------------------------------------------------------- */
 .toast {
   position: fixed;

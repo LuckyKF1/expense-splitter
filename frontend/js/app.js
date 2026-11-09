@@ -6,6 +6,8 @@ import { api } from "./api.js";
 import { h, icon } from "./dom.js";
 import { describeError, getLang, setLang, t } from "./i18n.js";
 import { rememberGroup } from "./storage.js";
+import { renderExpenseForm } from "./views/expense-form.js";
+import { renderExpenses } from "./views/expenses.js";
 import { renderHome } from "./views/home.js";
 import { renderMembers } from "./views/members.js";
 
@@ -21,7 +23,10 @@ const NAV_ITEMS = [
 const ROUTES = [
   { pattern: new RegExp("^/$"), view: renderHome },
   { pattern: new RegExp(`^/g/${TOKEN}/?$`), view: renderComingSoon, nav: "summary" },
-  { pattern: new RegExp(`^/g/${TOKEN}/expenses/?$`), view: renderComingSoon, nav: "expenses" },
+  { pattern: new RegExp(`^/g/${TOKEN}/expenses/?$`), view: renderExpenses, nav: "expenses" },
+  { pattern: new RegExp(`^/g/${TOKEN}/expenses/new/?$`), view: renderExpenseForm, nav: "expenses" },
+  { pattern: new RegExp(`^/g/${TOKEN}/expenses/([0-9]{1,18})/?$`), view: renderExpenseForm,
+    nav: "expenses" },
   { pattern: new RegExp(`^/g/${TOKEN}/settle/?$`), view: renderComingSoon, nav: "settle" },
   { pattern: new RegExp(`^/g/${TOKEN}/members/?$`), view: renderMembers, nav: "members" },
 ];
@@ -51,10 +56,10 @@ async function render({ focus, quiet = false } = {}) {
   const path = location.pathname;
   const route = ROUTES.find((r) => r.pattern.test(path));
   if (!route) return navigate("/", { replace: true });
-  const token = path.match(route.pattern)[1] ?? null;
+  const [, token = null, ...params] = path.match(route.pattern);
 
   const root = h("div", { class: "view-inner" });
-  const ctx = makeContext(token);
+  const ctx = makeContext(token, params);
   if (!quiet) shell.main.replaceChildren(h("p", { class: "loading" }, t("status.loading")));
   try {
     if (token) {
@@ -80,9 +85,11 @@ async function loadGroup(token) {
   return group;
 }
 
-function makeContext(token) {
+function makeContext(token, params) {
   return {
     token,
+    params, // extra URL parts, e.g. the expense id
+
     group: null,
     navigate,
     toast,

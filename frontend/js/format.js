@@ -3,9 +3,14 @@
 
 const LAO_DIGITS = "໐໑໒໓໔໕໖໗໘໙";
 
+/** 1180000 -> "1,180,000" (no sign, no currency). */
+export function groupDigits(amount) {
+  return String(Math.abs(amount)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 /** 1180000 -> "1,180,000 ₭"; negatives use a real minus sign (−). */
 export function formatKip(amount, { signed = false } = {}) {
-  const digits = String(Math.abs(amount)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const digits = groupDigits(amount);
   const sign = amount < 0 ? "−" : signed && amount > 0 ? "+" : "";
   return `${sign}${digits} ₭`;
 }
@@ -36,6 +41,14 @@ export function splitEqually(amount, memberIds) {
   const remainder = amount % ordered.length;
   ordered.forEach((id, index) => shares.set(id, base + (index < remainder ? 1 : 0)));
   return shares;
+}
+
+/** "2026-11-09" -> "9 Nov 2026" (en) or the Lao equivalent. */
+export function formatDate(iso, lang) {
+  const [year, month, day] = iso.split("-").map(Number);
+  const date = new Date(year, month - 1, day); // local midnight, no UTC shift
+  return new Intl.DateTimeFormat(lang === "lo" ? "lo-LA" : "en-GB",
+    { day: "numeric", month: "short", year: "numeric" }).format(date);
 }
 
 /** Local calendar date as YYYY-MM-DD (toISOString would give the UTC date). */
