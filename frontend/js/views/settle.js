@@ -1,7 +1,7 @@
 // "/g/:token/settle" — suggested transfers, recording payments, history.
 
 import { api } from "../api.js";
-import { h, icon } from "../dom.js";
+import { h, icon, whileBusy } from "../dom.js";
 import { formatDate, formatKip, parseKip, todayIso } from "../format.js";
 import { describeError, getLang, t } from "../i18n.js";
 import { field, moneyInput, needMembersCard, unbalancedBanner } from "./shared.js";
@@ -52,24 +52,24 @@ function suggestionsCard(transfers, group, ctx) {
         h("span", { class: "amount transfer-amount" }, formatKip(transfer.amount)),
         h("button", {
           class: "btn btn-small transfer-action", type: "button",
-          onClick: () => markPaid(transfer, group, ctx),
+          onClick: (event) => markPaid(transfer, group, ctx, event.currentTarget),
         }, icon("check"), t("settle.markPaid"))))));
   return card;
 }
 
-async function markPaid(transfer, group, ctx) {
+async function markPaid(transfer, group, ctx, button) {
   const question = t("settle.confirmPaid", {
     from: transfer.from_name, to: transfer.to_name, amount: formatKip(transfer.amount),
   });
-  if (!confirm(question)) return;
-  await ctx.run(async () => {
+  if (button.disabled || !confirm(question)) return;
+  await ctx.run(() => whileBusy(button, async () => {
     await api.recordSettlement(group.token, {
       from_member_id: transfer.from_member_id, to_member_id: transfer.to_member_id,
       amount: transfer.amount, paid_at: todayIso(),
     });
     ctx.toast(t("settle.recorded"));
     await ctx.refresh();
-  });
+  }));
 }
 
 function recordCard(group, ctx) {
@@ -85,6 +85,7 @@ function recordCard(group, ctx) {
     placeholder: t("settle.notePlaceholder"),
   });
   const error = h("p", { class: "form-error", role: "alert" });
+  const submit = h("button", { class: "btn btn-primary", type: "submit" }, t("settle.record"));
 
   async function onSubmit(event) {
     event.preventDefault();
@@ -97,12 +98,14 @@ function recordCard(group, ctx) {
     if (from.value === to.value) return void (error.textContent = t("reason.same_member"));
     if (!value) return void (error.textContent = t("form.invalidAmount"));
     try {
-      await api.recordSettlement(group.token, {
-        from_member_id: Number(from.value), to_member_id: Number(to.value),
-        amount: value, paid_at: paidAt.value, note: note.value,
+      await whileBusy(submit, async () => {
+        await api.recordSettlement(group.token, {
+          from_member_id: Number(from.value), to_member_id: Number(to.value),
+          amount: value, paid_at: paidAt.value, note: note.value,
+        });
+        ctx.toast(t("settle.recorded"));
+        await ctx.refresh();
       });
-      ctx.toast(t("settle.recorded"));
-      await ctx.refresh();
     } catch (err) {
       error.textContent = describeError(err);
     }
@@ -120,7 +123,7 @@ function recordCard(group, ctx) {
         field("pay-date", t("field.paid_at"), paidAt)),
       field("pay-note", t("field.note"), note),
       error,
-      h("button", { class: "btn btn-primary", type: "submit" }, t("settle.record"))));
+      submit));
 }
 
 function historyCard(history, group, ctx) {

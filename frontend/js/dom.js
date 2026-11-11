@@ -74,3 +74,18 @@ export function icon(name, { label } = {}) {
   }
   return svg;
 }
+
+/**
+ * Run a save with its button disabled, so a second tap while the first
+ * request is still travelling (slow tunnel) can't save the same thing twice.
+ * A call made while the button is already busy is ignored.
+ */
+export async function whileBusy(button, action) {
+  if (button.disabled) return undefined;
+  button.disabled = true;
+  try {
+    return await action();
+  } finally {
+    button.disabled = false;
+  }
+}
