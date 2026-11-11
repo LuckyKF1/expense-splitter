@@ -46,6 +46,14 @@ def clean_text(data, field, max_length):
     return text
 
 
+def optional_text(data, field, max_length):
+    """Like clean_text, but a missing, null or blank value becomes ""."""
+    value = data.get(field)
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return ""
+    return clean_text(data, field, max_length)
+
+
 def is_strict_int(value):
     """True for JSON integers only; bool is an int subclass in Python."""
     return isinstance(value, int) and not isinstance(value, bool)
