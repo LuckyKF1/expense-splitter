@@ -48,6 +48,19 @@ on, and anyone with a group link can view and edit that group.
 ```bash
 python3 -m unittest discover -s tests -t . -v     # backend
 node --test "tests/js/*.test.mjs"                 # frontend logic (Node 18+)
+node tests/browser/run.mjs                        # real app in headless Chrome (Node 22+)
+```
+
+The browser tests start their own server on a free port with a throwaway
+database (your `data/expenses.db` is never touched), open each screen in
+headless Chrome at phone and desktop sizes, and click through the real flows.
+They need Chrome or Chromium installed (`CHROME=/path/to/chrome` if it is not
+on `PATH`), but no npm packages.
+
+```bash
+node tests/browser/run.mjs settle members          # only some scenarios
+SHOTS=/tmp/shots node tests/browser/run.mjs        # also save screenshots
+RTT=300 node tests/browser/run.mjs tests/browser/perf.mjs   # load-time report at 300 ms latency
 ```
 
 ## Project layout
@@ -55,7 +68,7 @@ node --test "tests/js/*.test.mjs"                 # frontend logic (Node 18+)
 ```
 backend/   server.py (HTTP + routing), database.py (schema, migrations)
 frontend/  index.html, css/, js/ (ES modules, no build step)
-tests/     unittest suites
+tests/     unittest suites; js/ (node --test); browser/ (Chrome scenarios)
 data/      SQLite database (git-ignored)
 scripts/   tunnel.sh (share over the internet)
 ```
