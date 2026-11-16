@@ -72,7 +72,7 @@ function heroCard(summary, people, me, canSettle, ctx) {
   const label = { positive: "summary.youGetBack", negative: "summary.youOwe", even: "summary.youAreEven" }[kind];
   return h("section", { class: ["card", "hero-card", `hero-${kind}`] },
     h("div", { class: "hero-me" },
-      avatar(me, { size: "lg" }),
+      avatar(me, { size: "sm" }),
       h("span", { class: "hero-me-name" }, me.name)),
     h("p", { class: "hero-label" }, t(label)),
     me.balance !== 0 && heroAmount(Math.abs(me.balance)),
