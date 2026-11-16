@@ -208,6 +208,22 @@ class StaticFileTests(ServerTestCase):
         self.assertIn(f"'sha256-{digest}'", csp)
         self.assertNotIn("unsafe-inline", csp)
 
+    def test_csp_allows_every_inline_script_by_hash(self):
+        # The theme script runs inline in <head> so a saved dark theme is
+        # applied before the first paint (no white flash).
+        headers, html = self.index()
+        inline = re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", html, re.S)
+        self.assertGreaterEqual(len(inline), 2, "expected the import map and the theme script")
+        csp = headers["Content-Security-Policy"]
+        for script in inline:
+            digest = base64.b64encode(hashlib.sha256(script.encode()).digest()).decode()
+            self.assertIn(f"'sha256-{digest}'", csp, script[:60])
+
+    def test_theme_script_runs_before_the_stylesheet_loads(self):
+        _, html = self.index()
+        theme = html.index("dataset.theme")
+        self.assertLess(theme, html.index('rel="stylesheet"'))
+
     def test_versioned_files_are_cached_for_good(self):
         _, html = self.index()
         url = re.search(r'src="(/js/app\.js\?v=[0-9a-f]+)"', html).group(1)

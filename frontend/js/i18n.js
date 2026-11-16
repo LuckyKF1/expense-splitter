@@ -10,6 +10,10 @@ export const MESSAGES = {
     "app.tagline": "Split trips, meals and activities fairly, in Kip.",
     "lang.switch": "ລາວ",
     "lang.switchLabel": "ປ່ຽນເປັນພາສາລາວ",
+    "theme.auto": "Theme: automatic (follows your device)",
+    "theme.light": "Theme: light",
+    "theme.dark": "Theme: dark",
+    "theme.change": "tap to change",
 
     "nav.summary": "Summary",
     "nav.expenses": "Expenses",
@@ -198,6 +202,10 @@ export const MESSAGES = {
     "app.tagline": "ແບ່ງຄ່າທ່ຽວ ຄ່າອາຫານ ແລະ ກິດຈະກຳ ຢ່າງຍຸດຕິທຳ ເປັນເງິນກີບ.",
     "lang.switch": "EN",
     "lang.switchLabel": "Switch to English",
+    "theme.auto": "ຮູບແບບສີ: ອັດຕະໂນມັດ (ຕາມເຄື່ອງ)",
+    "theme.light": "ຮູບແບບສີ: ແຈ້ງ",
+    "theme.dark": "ຮູບແບບສີ: ມືດ",
+    "theme.change": "ແຕະເພື່ອປ່ຽນ",
 
     "nav.summary": "ສະຫຼຸບ",
     "nav.expenses": "ລາຍຈ່າຍ",

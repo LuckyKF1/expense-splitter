@@ -54,8 +54,10 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Dark: follows the device unless a theme was chosen (data-theme on <html>,
+   set by the inline script in index.html and by the theme button). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --color-bg: #121412;
     --color-surface: #1c1f1c;
     --color-surface-2: #252925;
@@ -80,6 +82,32 @@
     --shadow-lift: none;
   }
 }
+:root[data-theme="dark"] {
+  --color-bg: #121412;
+  --color-surface: #1c1f1c;
+  --color-surface-2: #252925;
+  --color-border: #343934;
+  --color-text: #e8ebe6;
+  --color-muted: #a3aaa0;
+  --color-primary: #5cc4a4;
+  --color-primary-hover: #7dd3b8;
+  --color-on-primary: #0b2a21;
+  --color-primary-deep: #2f8f73;
+  --color-primary-soft: #1d332c;
+  --color-danger: #ff8a80;
+  --color-danger-soft: #3a1f1d;
+  --color-positive: #6fd18f;
+  --color-positive-soft: #1c3526;
+  --color-negative: #ff8a80;
+  --color-negative-soft: #3d221f;
+  --color-warning-soft: #3a3016;
+  --color-warning-line: #806a2a;
+  --color-warning-text: #f3d27a;
+  --shadow: none;
+  --shadow-lift: none;
+}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 
 /* ---- Base ----------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; }
@@ -791,7 +819,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   border: 0;
   border-radius: 999px;
   background: rgb(255 255 255 / 0.95);
-  color: var(--color-text);
+  color: #1c1d1a; /* the chip is always white, in dark mode too */
   font-weight: 600;
   cursor: pointer;
 }

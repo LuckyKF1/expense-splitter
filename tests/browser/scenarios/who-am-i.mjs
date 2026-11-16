@@ -24,6 +24,15 @@ export async function run({ token, ids, open, evaluate, waitFor, text, check, as
     await screenshot("who-ask-360");
   });
 
+  await check("dark theme: names on the white chips stay dark and readable", async () => {
+    await evaluate("localStorage.setItem('expense-splitter:theme', JSON.stringify('dark'))");
+    await open(g);
+    const colour = await evaluate("getComputedStyle(document.querySelector('.person-chip-name')).color");
+    await evaluate("localStorage.removeItem('expense-splitter:theme')");
+    await open(g);
+    assert(colour === "rgb(28, 29, 26)", colour);
+  });
+
   await check("tapping your name shows what you owe, in red, with a settle button", async () => {
     await tap("Noy");
     await waitFor("!!document.querySelector('.hero-me')");

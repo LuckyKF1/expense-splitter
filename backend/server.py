@@ -310,9 +310,8 @@ class RequestHandler(BaseHTTPRequestHandler):
         body = file_path.read_bytes()
         csp = None
         if file_path.name == "index.html":
-            body, import_map = versioned_index(body)
-            digest = base64.b64encode(hashlib.sha256(import_map).digest()).decode()
-            csp = CSP_TEMPLATE.format(extra_script=f" 'sha256-{digest}'")
+            body = versioned_index(body)
+            csp = CSP_TEMPLATE.format(extra_script=inline_script_hashes(body))
 
         # Caching. A URL carrying the file's current version (?v=<hash>,
         # written into index.html) can be kept forever: new code gets a new
@@ -394,8 +393,8 @@ def versioned_index(html):
       discover imports one level (= one round trip) at a time.
     - The stylesheet and entry script get ?v= as well.
 
-    Returns (html, import_map_json) so the caller can allow the inline
-    import map in the CSP by its hash.
+    The import map is an inline script; inline_script_hashes() lets the
+    CSP allow it (and the theme script in index.html) by hash.
     """
     def url(path):
         return f"/{path.relative_to(FRONTEND_DIR).as_posix()}?v={asset_version(path.read_bytes())}"
@@ -413,7 +412,17 @@ def versioned_index(html):
     html = html.replace(b'  <link rel="stylesheet" href="/css/style.css">\n', b"", 1)
     html = html.replace(b'  <script type="module" src="/js/app.js"></script>\n', b"", 1)
     # The import map must come before anything that loads a module.
-    return html.replace(b"</head>", b"  " + head + b"</head>", 1), import_map
+    return html.replace(b"</head>", b"  " + head + b"</head>", 1)
+
+
+INLINE_SCRIPT = re.compile(rb"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.S)
+
+
+def inline_script_hashes(html):
+    """CSP sources allowing exactly the inline scripts in `html`, by hash
+    (never 'unsafe-inline', which would also allow injected scripts)."""
+    return "".join(f" 'sha256-{base64.b64encode(hashlib.sha256(body).digest()).decode()}'"
+                   for body in INLINE_SCRIPT.findall(html))
 
 
 def resolve_static_path(url_path):
