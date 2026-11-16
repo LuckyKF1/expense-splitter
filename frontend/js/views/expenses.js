@@ -1,11 +1,12 @@
-// "/g/:token/expenses" — all expenses, newest first.
-// One <table>: a real table on desktop, restyled as cards on phones (CSS).
+// "/g/:token/expenses" — all expenses, newest first, grouped by day.
+// Each row is one link to the expense's edit screen.
 
 import { api } from "../api.js";
 import { h, icon } from "../dom.js";
-import { formatDate, formatKip } from "../format.js";
+import { groupByDay } from "../expense-model.js";
+import { formatDay, formatKip } from "../format.js";
 import { getLang, t } from "../i18n.js";
-import { needMembersCard } from "./shared.js";
+import { avatar, needMembersCard } from "./shared.js";
 
 export const loadExpenses = (token) => api.listExpenses(token);
 
@@ -13,7 +14,7 @@ export async function renderExpenses(root, ctx) {
   const group = ctx.group;
   document.title = `${t("expenses.title")} · ${group.name}`;
   const expenses = ctx.data;
-  const names = new Map(group.members.map((m) => [m.id, m.name]));
+  const members = new Map(group.members.map((m) => [m.id, m]));
   const newPath = `/g/${group.token}/expenses/new`;
   const hasMembers = group.members.some((m) => !m.archived);
   const total = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -37,39 +38,42 @@ export async function renderExpenses(root, ctx) {
       ? h("section", { class: "card state-card" },
         h("p", { class: "muted" }, t("expenses.empty")),
         h("a", { class: "btn btn-primary", href: newPath }, icon("plus"), t("expenses.add")))
-      : expenseTable(expenses, names, group, ctx),
+      : h("div", { class: "day-list" }, groupByDay(expenses).map((day) => daySection(day, members, group))),
     h("a", { class: "fab", href: newPath, "aria-label": t("expenses.add"), title: t("expenses.add") },
       icon("plus")));
 }
 
-function expenseTable(expenses, names, group, ctx) {
-  return h("table", { class: "expense-table" },
-    h("thead", {}, h("tr", {},
-      h("th", { scope: "col" }, t("field.spent_at")),
-      h("th", { scope: "col" }, t("field.description")),
-      h("th", { scope: "col" }, t("field.payers")),
-      h("th", { scope: "col" }, t("field.participants")),
-      h("th", { scope: "col", class: "num" }, t("field.amount")))),
-    h("tbody", {}, expenses.map((expense) => {
-      const href = `/g/${group.token}/expenses/${expense.id}`;
-      return h("tr", {
-        class: ["expense-row", expense.unbalanced_by !== 0 && "is-unbalanced"],
-        // Whole row is tappable; the link inside keeps keyboard access.
-        onClick: (event) => { if (!event.target.closest("a")) ctx.navigate(href); },
-      },
-      h("td", { class: "cell-date" }, formatDate(expense.spent_at, getLang())),
-      h("td", { class: "cell-desc" }, h("a", { href, class: "row-link" }, expense.description)),
-      h("td", { class: "cell-payers" }, payerSummary(expense, names)),
-      h("td", { class: "cell-split" },
-        t("expenses.splitCount", { count: expense.shares.length })),
-      h("td", { class: "cell-amount num" },
-        h("span", { class: "amount" }, formatKip(expense.amount)),
-        unbalancedBadge(expense)));
-    })));
+function daySection(day, members, group) {
+  return h("section", { class: "day" },
+    h("h2", { class: "day-heading" },
+      h("span", {}, formatDay(day.date, getLang())),
+      h("span", { class: "day-total" }, formatKip(day.total))),
+    h("ul", { class: "list card expense-list" }, day.expenses.map((expense) =>
+      h("li", {}, expenseRow(expense, members, group)))));
 }
 
-function payerSummary(expense, names) {
-  const [first, ...rest] = expense.payers.map((p) => names.get(p.member_id) ?? "?");
+function expenseRow(expense, members, group) {
+  const payers = expense.payers.map((p) => members.get(p.member_id) ?? { id: p.member_id, name: "?" });
+  return h("a", {
+    class: ["expense-row", "row-link", expense.unbalanced_by !== 0 && "is-unbalanced"],
+    href: `/g/${group.token}/expenses/${expense.id}`,
+  },
+  // Who paid, at a glance: one circle, or two overlapping for a shared bill.
+  h("span", { class: ["payer-avatars", payers.length > 1 && "is-several"] },
+    payers.slice(0, 2).map((m) => avatar(m))),
+  h("span", { class: "expense-main" },
+    h("span", { class: "expense-desc" }, expense.description),
+    h("span", { class: "expense-meta" },
+      h("span", { class: "cell-payers" }, payerSummary(payers)),
+      " · ",
+      h("span", { class: "cell-split" }, t("expenses.splitCount", { count: expense.shares.length })))),
+  h("span", { class: "cell-amount" },
+    h("span", { class: "amount" }, formatKip(expense.amount)),
+    unbalancedBadge(expense)));
+}
+
+function payerSummary(payers) {
+  const [first, ...rest] = payers.map((m) => m.name);
   return rest.length ? t("expenses.others", { name: first, count: rest.length }) : first;
 }
 

@@ -10,7 +10,7 @@ import { h, icon } from "../dom.js";
 import { buildExpense, paymentStatus, sharePreview } from "../expense-model.js";
 import { DATE_RANGE, formatKip, groupDigits, parseKip, todayIso } from "../format.js";
 import { describeError, t } from "../i18n.js";
-import { field, moneyInput } from "./shared.js";
+import { avatar, field, moneyInput } from "./shared.js";
 
 /** Editing: fetch the expense. Adding (no id in the URL): nothing to load. */
 export const loadExpenseForm = (token, [expenseId]) => api.getExpense(token, Number(expenseId));
@@ -204,14 +204,14 @@ export async function renderExpenseForm(root, ctx) {
     members.map((m) =>
       h("label", { class: "chip" }, payerRadios.get(m.id),
         h("span", { class: "chip-body" },
-          h("span", { class: "chip-check" }, icon("check")),
+          avatar(m, { size: "sm" }),
           h("span", { class: "chip-name" }, m.name)))));
 
   const multiBlock = h("div", { class: "stack-sm" },
     h("p", { class: "muted small" }, t("form.payersHint")),
     h("ul", { class: "list payer-list" }, members.map((m) =>
       h("li", { class: "payer-row" },
-        h("label", { class: "payer-name", for: `payer-${m.id}` }, m.name),
+        h("label", { class: "payer-name", for: `payer-${m.id}` }, avatar(m, { size: "sm" }), h("span", {}, m.name)),
         payerInputs.get(m.id),
         h("button", {
           class: "btn btn-small", type: "button", onClick: () => payAll(m.id),
@@ -249,7 +249,7 @@ export async function renderExpenseForm(root, ctx) {
         h("div", { class: "chips" }, members.map((m) =>
           h("label", { class: "chip" }, checkboxes.get(m.id),
             h("span", { class: "chip-body" },
-              h("span", { class: "chip-check" }, icon("check")),
+              avatar(m, { size: "sm" }),
               h("span", { class: "chip-name" }, m.name),
               shareLabels.get(m.id))))),
         previewLine),

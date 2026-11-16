@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { buildExpense, paymentStatus, sharePreview } from "../../frontend/js/expense-model.js";
-import { formatDate } from "../../frontend/js/format.js";
+import { buildExpense, groupByDay, paymentStatus, sharePreview } from "../../frontend/js/expense-model.js";
+import { formatDate, formatDay } from "../../frontend/js/format.js";
 
 const form = (overrides = {}) => ({
   description: "Dinner",
@@ -85,4 +85,29 @@ test("formatDate writes Lao months itself (many browsers lack Lao Intl data)", (
   } finally {
     Intl.DateTimeFormat = RealDateTimeFormat;
   }
+});
+
+test("formatDay adds the weekday for list headings", () => {
+  // 2026-11-14 is a Saturday, 2026-11-16 a Monday.
+  assert.equal(formatDay("2026-11-14", "en"), "Sat 14 Nov 2026");
+  assert.equal(formatDay("2026-11-16", "en"), "Mon 16 Nov 2026");
+});
+
+test("formatDay writes Lao weekdays itself", () => {
+  assert.equal(formatDay("2026-11-14", "lo"), "ວັນເສົາ 14 ພ.ຈ. 2026");
+  assert.equal(formatDay("2026-11-15", "lo"), "ວັນອາທິດ 15 ພ.ຈ. 2026");
+  assert.equal(formatDay("2026-11-16", "lo"), "ວັນຈັນ 16 ພ.ຈ. 2026");
+});
+
+test("groupByDay keeps the list order and totals each day", () => {
+  const list = [
+    { id: 4, spent_at: "2026-11-15", amount: 320000 },
+    { id: 3, spent_at: "2026-11-15", amount: 750000 },
+    { id: 2, spent_at: "2026-11-14", amount: 458000 },
+  ];
+  assert.deepEqual(groupByDay(list).map((d) => [d.date, d.total, d.expenses.map((e) => e.id)]), [
+    ["2026-11-15", 1070000, [4, 3]],
+    ["2026-11-14", 458000, [2]],
+  ]);
+  assert.deepEqual(groupByDay([]), []);
 });

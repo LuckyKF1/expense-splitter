@@ -482,95 +482,58 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .badge-warning { background: var(--color-warning-soft); color: var(--color-warning-text); }
 
-/* ---- Expense table: cards on phones, table from tablet up -------------------------------- */
-.expense-table { width: 100%; border-collapse: collapse; }
-/* A real table grows to fit its longest content; on phones it is only a
-   list of cards, so make it a plain block that stays screen-wide. */
-.expense-table { display: block; }
-.expense-table thead { display: none; }
-.expense-table tbody { display: flex; flex-direction: column; gap: var(--space-2); }
+/* ---- Expense list: grouped by day, one card per day ----------------------------------- */
+.day-list { display: flex; flex-direction: column; gap: var(--space-4); }
+.day { display: flex; flex-direction: column; gap: var(--space-2); }
+.day-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: 0 var(--space-1);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+.day-total { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-/* Phone card:  [description ............ amount]
-                [date · paid by · people (wraps) ]
-   Flex, not grid: a long payer name must wrap under the amount instead of
-   being squeezed into a narrow column. The ::before item is the line break. */
+/* overflow: hover backgrounds and the warning stripe follow the rounded corners. */
+.expense-list { gap: 0; padding: 0; overflow: hidden; }
+@media (min-width: 768px) { .expense-list { padding: 0; } }
+.expense-list > li + li { border-top: 1px solid var(--color-border); }
+
+/* [avatar] Description (max 3 lines)      320,000 ₭
+            Luck · 5 people              20,000 missing */
 .expense-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: var(--space-2);
+  align-items: flex-start;
+  gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
 }
-.expense-row td { padding: 0; min-width: 0; }
-.expense-row .cell-desc { order: 1; flex: 1 1 0; font-weight: 600; }
-.expense-row .cell-amount { order: 2; flex: none; align-self: start; text-align: right; }
-.expense-row::before { content: ""; order: 3; flex-basis: 100%; }
-.expense-row .cell-date { order: 4; white-space: nowrap; }
-.expense-row .cell-payers { order: 5; overflow-wrap: anywhere; }
-.expense-row .cell-split { order: 6; white-space: nowrap; }
-.expense-row .cell-date,
-.expense-row .cell-payers,
-.expense-row .cell-split { margin-top: var(--space-1); color: var(--color-muted); font-size: 14px; }
-.expense-row .cell-payers::before,
-.expense-row .cell-split::before { content: "·"; margin-right: var(--space-2); }
-.expense-row.is-unbalanced { border-color: var(--color-warning-text); }
-
-.row-link { color: inherit; text-decoration: none; overflow-wrap: anywhere; }
-/* Long descriptions: at most 3 lines in the list; the full text is on the
-   expense's own screen. */
-.expense-row .row-link {
+.expense-row:hover { background: var(--color-surface-2); }
+.expense-row.is-unbalanced { box-shadow: inset 4px 0 var(--color-warning-line); }
+.expense-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.expense-desc {
+  font-weight: 650;
+  overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   line-clamp: 3;
   overflow: hidden;
 }
+.expense-meta { color: var(--color-muted); font-size: 14px; overflow-wrap: anywhere; }
+.cell-amount { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); }
 .amount { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.cell-amount .badge { display: block; margin-top: var(--space-1); }
 .num { text-align: right; }
 
-@media (min-width: 768px) {
-  .expense-table {
-    display: table;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    overflow: hidden;
-  }
-  .expense-table thead { display: table-header-group; }
-  .expense-table tbody { display: table-row-group; }
-  .expense-table th {
-    padding: var(--space-3) var(--space-4);
-    text-align: left;
-    font-size: 13px;
-    color: var(--color-muted);
-    background: var(--color-surface-2);
-  }
-  .expense-table th.num { text-align: right; }
-  .expense-row {
-    display: table-row;
-    border: 0;
-    border-radius: 0;
-  }
-  .expense-row::before { content: none; }
-  .expense-row td {
-    padding: var(--space-3) var(--space-4);
-    border-top: 1px solid var(--color-border);
-    vertical-align: top;
-  }
-  .expense-row .cell-date,
-  .expense-row .cell-payers,
-  .expense-row .cell-split { font-size: 15px; }
-  .expense-row .cell-date { white-space: nowrap; }
-  .expense-row .cell-payers::before,
-  .expense-row .cell-split::before { content: none; }
-  .expense-row:hover td { background: var(--color-surface-2); }
-  .expense-row.is-unbalanced td:first-child { box-shadow: inset 4px 0 var(--color-warning-text); }
-}
+.payer-avatars { display: inline-flex; flex: none; }
+/* Two payers: two smaller overlapping circles in the same 40px slot. */
+.payer-avatars.is-several { width: 40px; padding-top: 6px; }
+.payer-avatars.is-several .avatar { width: 26px; height: 26px; font-size: 12px; }
+.payer-avatars.is-several .avatar + .avatar { margin-left: -12px; margin-top: 10px; box-shadow: 0 0 0 2px var(--color-surface); }
 
 /* ---- Expense form -------------------------------------------------------------------------- */
 .form-card { gap: var(--space-5); max-width: 760px; }
@@ -596,7 +559,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
   gap: var(--space-2);
   padding: var(--space-1) 0;
 }
-.payer-name { overflow-wrap: anywhere; }
+.payer-name { display: flex; align-items: center; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
+.payer-name > span { min-width: 0; }
 .input-money { text-align: right; font-variant-numeric: tabular-nums; }
 
 .btn-small {
@@ -640,7 +604,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   align-items: center;
   gap: var(--space-2);
   min-height: var(--tap);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-3) 0 var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: var(--color-surface);
@@ -648,15 +612,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
   max-width: 100%;
   overflow-wrap: anywhere;
 }
-.chip-check { display: none; }
-.chip-check .icon { width: 18px; height: 18px; }
 .chip-share { color: var(--color-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 .chip-share:empty { display: none; }
 .chip-input:checked + .chip-body {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
 }
-.chip-input:checked + .chip-body .chip-check { display: inline-flex; color: var(--color-primary); }
+.chip-input:checked + .chip-body { font-weight: 650; }
+/* Not chosen: a grey circle, so the chosen people stand out in colour. */
+.chip-input:not(:checked) + .chip-body .avatar { background: var(--color-surface-2); color: var(--color-muted); }
 .chip-input:not(:checked) + .chip-body .chip-name { color: var(--color-muted); }
 .chip-input:focus-visible + .chip-body { outline: 3px solid var(--color-primary); outline-offset: 2px; }
 
@@ -682,11 +646,16 @@ button, input, select, textarea { font: inherit; color: inherit; }
   }
 }
 
+/* The amount: the first and biggest thing on the form. */
 .input-large {
-  min-height: 56px;
-  font-size: 24px;
-  font-weight: 700;
+  min-height: 64px;
+  font-size: 30px;
+  font-weight: 800;
+  border-width: 2px;
+  border-radius: var(--radius);
+  font-variant-numeric: tabular-nums;
 }
+.input-large:focus { border-color: var(--color-primary); }
 
 .btn-link {
   border-color: transparent;

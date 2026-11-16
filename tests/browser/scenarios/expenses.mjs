@@ -111,10 +111,12 @@ export async function run({ token, open, evaluate, waitFor, screenshot, text, ch
     assert(sum === 1180000 && e.unbalanced_by === 0, JSON.stringify({ sum, ub: e.unbalanced_by }));
   });
 
-  await check("desktop shows a real table with headers", async () => {
+  await check("the list is grouped by day with each day's total", async () => {
     await open(base, 1280, 700);
-    const headers = await text(".expense-table th");
-    assert(headers.length === 5, JSON.stringify(headers));
+    const headings = await text(".day-heading");
+    assert(headings.length === 1 && /^\w{3} \d+ \w{3} \d{4}1,180,000 ₭$/.test(headings[0]), JSON.stringify(headings));
+    const payer = await text(".expense-row .payer-avatars .avatar");
+    assert(payer.length === 2, `two payers should show two circles: ${JSON.stringify(payer)}`);
     await screenshot("6b-list-1280");
     await open(`${base}/new`, 1280, 1000);
     await screenshot("6b-form-1280");

@@ -16,7 +16,7 @@ export async function run({ token, open, evaluate, waitFor, screenshot, check, a
     el.dispatchEvent(new Event('input', { bubbles: true }));
   })()`);
   const tapPayer = (name) => evaluate(`[...document.querySelectorAll('.fieldset')][0]
-    .querySelectorAll('.chip').forEach(c => { if (c.textContent === ${JSON.stringify(name)}) c.click(); })`);
+    .querySelectorAll('.chip').forEach(c => { if (c.querySelector('.chip-name').textContent === ${JSON.stringify(name)}) c.click(); })`);
 
   await check("new expense: cursor starts in the amount field", async () => {
     await open(`${base}/new`);
@@ -46,7 +46,7 @@ export async function run({ token, open, evaluate, waitFor, screenshot, check, a
   await check("editing a one-payer expense opens in one-payer mode with the name selected", async () => {
     await evaluate("[...document.querySelectorAll('.expense-row')].find(r => r.textContent.includes('ອາຫານແລງ')).click()");
     await waitFor("document.querySelector('#expense-description')?.value === 'ອາຫານແລງ'");
-    const checked = await evaluate("[...document.querySelectorAll('input[name=single-payer]')].filter(r => r.checked).map(r => r.closest('label').textContent)");
+    const checked = await evaluate("[...document.querySelectorAll('input[name=single-payer]')].filter(r => r.checked).map(r => r.closest('label').querySelector('.chip-name').textContent)");
     assert(JSON.stringify(checked) === '["fy"]', JSON.stringify(checked));
   });
 

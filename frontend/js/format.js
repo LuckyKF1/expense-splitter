@@ -60,10 +60,20 @@ export function formatDate(iso, lang) {
     { day: "numeric", month: "short", year: "numeric" }).format(date);
 }
 
-/** Local calendar date as YYYY-MM-DD (toISOString would give the UTC date). */
+const LAO_WEEKDAYS = ["ວັນອາທິດ", "ວັນຈັນ", "ວັນອັງຄານ", "ວັນພຸດ", "ວັນພະຫັດ", "ວັນສຸກ", "ວັນເສົາ"];
+const EN_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** Day heading: "Sat 14 Nov 2026" (en) or "ວັນເສົາ 14 ພ.ຈ. 2026" (lo). */
+export function formatDay(iso, lang) {
+  const [year, month, day] = iso.split("-").map(Number);
+  const weekday = new Date(year, month - 1, day).getDay();
+  return `${(lang === "lo" ? LAO_WEEKDAYS : EN_WEEKDAYS)[weekday]} ${formatDate(iso, lang)}`;
+}
+
 /** Dates the server accepts (backend/validation.py MIN_DATE/MAX_DATE). */
 export const DATE_RANGE = { min: "2000-01-01", max: "2099-12-31" };
 
+/** Local calendar date as YYYY-MM-DD (toISOString would give the UTC date). */
 export function todayIso(now = new Date()) {
   const pad = (n) => String(n).padStart(2, "0");
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
