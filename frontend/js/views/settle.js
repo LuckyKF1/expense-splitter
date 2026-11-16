@@ -2,7 +2,7 @@
 
 import { api } from "../api.js";
 import { h, icon, whileBusy } from "../dom.js";
-import { formatDate, formatKip, parseKip, todayIso } from "../format.js";
+import { DATE_RANGE, formatDate, formatKip, parseKip, todayIso } from "../format.js";
 import { describeError, getLang, t } from "../i18n.js";
 import { field, moneyInput, needMembersCard, unbalancedBanner } from "./shared.js";
 
@@ -79,7 +79,7 @@ function recordCard(group, ctx) {
   const from = h("select", { id: "pay-from", class: "input" }, options());
   const to = h("select", { id: "pay-to", class: "input" }, options());
   const amount = moneyInput("pay-amount");
-  const paidAt = h("input", { id: "pay-date", class: "input", type: "date", value: todayIso() });
+  const paidAt = h("input", { id: "pay-date", class: "input", type: "date", value: todayIso(), ...DATE_RANGE });
   const note = h("input", {
     id: "pay-note", class: "input", maxlength: 200, autocomplete: "off",
     placeholder: t("settle.notePlaceholder"),

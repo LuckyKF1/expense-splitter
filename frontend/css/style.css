@@ -464,20 +464,21 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---- Expense table: cards on phones, table from tablet up -------------------------------- */
 .expense-table { width: 100%; border-collapse: collapse; }
+/* A real table grows to fit its longest content; on phones it is only a
+   list of cards, so make it a plain block that stays screen-wide. */
+.expense-table { display: block; }
 .expense-table thead { display: none; }
 .expense-table tbody { display: flex; flex-direction: column; gap: var(--space-2); }
 
 /* Phone card:  [description ............ amount]
-                [date · paid by · people   badge ] */
+                [date · paid by · people (wraps) ]
+   Flex, not grid: a long payer name must wrap under the amount instead of
+   being squeezed into a narrow column. The ::before item is the line break. */
 .expense-row {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
-  grid-template-areas:
-    "desc desc desc amount"
-    "date payers split amount";
+  display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   column-gap: var(--space-2);
-  row-gap: var(--space-1);
   padding: var(--space-3) var(--space-4);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -485,25 +486,36 @@ button, input, select, textarea { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .expense-row td { padding: 0; min-width: 0; }
-.expense-row .cell-desc { grid-area: desc; font-weight: 600; }
-.expense-row .cell-amount { grid-area: amount; align-self: start; text-align: right; }
-.expense-row .cell-date { grid-area: date; white-space: nowrap; }
-.expense-row .cell-payers { grid-area: payers; white-space: nowrap; }
-.expense-row .cell-split { grid-area: split; white-space: nowrap; }
+.expense-row .cell-desc { order: 1; flex: 1 1 0; font-weight: 600; }
+.expense-row .cell-amount { order: 2; flex: none; align-self: start; text-align: right; }
+.expense-row::before { content: ""; order: 3; flex-basis: 100%; }
+.expense-row .cell-date { order: 4; white-space: nowrap; }
+.expense-row .cell-payers { order: 5; overflow-wrap: anywhere; }
+.expense-row .cell-split { order: 6; white-space: nowrap; }
 .expense-row .cell-date,
 .expense-row .cell-payers,
-.expense-row .cell-split { color: var(--color-muted); font-size: 14px; }
+.expense-row .cell-split { margin-top: var(--space-1); color: var(--color-muted); font-size: 14px; }
 .expense-row .cell-payers::before,
 .expense-row .cell-split::before { content: "·"; margin-right: var(--space-2); }
 .expense-row.is-unbalanced { border-color: var(--color-warning-text); }
 
 .row-link { color: inherit; text-decoration: none; overflow-wrap: anywhere; }
+/* Long descriptions: at most 3 lines in the list; the full text is on the
+   expense's own screen. */
+.expense-row .row-link {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
 .amount { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .cell-amount .badge { display: block; margin-top: var(--space-1); }
 .num { text-align: right; }
 
 @media (min-width: 768px) {
   .expense-table {
+    display: table;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
@@ -524,6 +536,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
     border: 0;
     border-radius: 0;
   }
+  .expense-row::before { content: none; }
   .expense-row td {
     padding: var(--space-3) var(--space-4);
     border-top: 1px solid var(--color-border);
@@ -595,7 +608,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .form-error:empty { display: none; }
 
 .chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.chip { position: relative; }
+.chip { position: relative; max-width: 100%; min-width: 0; }
 .chip-input {
   position: absolute;
   opacity: 0;
@@ -612,6 +625,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
   border-radius: 999px;
   background: var(--color-surface);
   cursor: pointer;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .chip-check { display: none; }
 .chip-check .icon { width: 18px; height: 18px; }
@@ -696,8 +711,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .balance-negative { color: var(--color-negative); }
 .balance-even { color: var(--color-muted); }
 
-/* Phone: [name ........ balance]   Tablet+: full table with all columns.
+/* Phone/tablet: [name ... balance]   Desktop: full table with all columns.
            [paid · share        ]                                        */
+.table-scroll { overflow-x: auto; }
 .balance-table { width: 100%; border-collapse: collapse; }
 .balance-table thead { display: none; }
 .balance-row {
@@ -726,7 +742,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .balance-row .cell-share,
 .balance-row .cell-transfers { display: none; }
 
-@media (min-width: 768px) {
+/* Five money columns need desktop width; below that the card layout is
+   easier to read than a table with names squeezed to a few letters. */
+@media (min-width: 1024px) {
   .balance-table thead { display: table-header-group; }
   .balance-table th[scope="col"] {
     padding: var(--space-2) var(--space-3);
@@ -742,7 +760,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
     border-top: 1px solid var(--color-border);
     vertical-align: middle;
   }
-  .balance-row .cell-name { display: table-cell; }
+  .balance-row .cell-name { display: table-cell; min-width: 8rem; }
   .balance-row .cell-name .badge { margin-left: var(--space-2); }
   .balance-row .cell-paid,
   .balance-row .cell-share,

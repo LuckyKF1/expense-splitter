@@ -53,7 +53,8 @@ function balancesCard(people, summary, group) {
   const settled = people.every((m) => m.balance === 0);
   return h("section", { class: "card" },
     h("h2", { class: "card-title" }, t("summary.balancesTitle")),
-    h("table", { class: "balance-table" },
+    // Huge amounts can still outgrow a desktop card; scroll inside it then.
+    h("div", { class: "table-scroll" }, h("table", { class: "balance-table" },
       h("thead", {}, h("tr", {},
         h("th", { scope: "col" }, t("summary.colName")),
         h("th", { scope: "col", class: "num" }, t("summary.colPaid")),
@@ -71,7 +72,7 @@ function balancesCard(people, summary, group) {
           h("td", { class: "num cell-balance" }, balance(m.balance)),
           h("td", { class: "cell-detail" },
             t("summary.paidShare", { paid: formatKip(m.paid), share: formatKip(m.share) })));
-      }))),
+      })))),
     settled
       ? h("p", { class: "all-settled" }, icon("check"), t("summary.allSettled"))
       : summary.is_balanced && h("a", { class: "btn btn-primary", href: `/g/${group.token}/settle` },

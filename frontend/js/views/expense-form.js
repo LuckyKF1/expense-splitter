@@ -8,7 +8,7 @@
 import { api } from "../api.js";
 import { h, icon } from "../dom.js";
 import { buildExpense, paymentStatus, sharePreview } from "../expense-model.js";
-import { formatKip, groupDigits, parseKip, todayIso } from "../format.js";
+import { DATE_RANGE, formatKip, groupDigits, parseKip, todayIso } from "../format.js";
 import { describeError, t } from "../i18n.js";
 import { field, moneyInput } from "./shared.js";
 
@@ -39,7 +39,7 @@ export async function renderExpenseForm(root, ctx) {
   const amount = moneyInput("expense-amount", existing?.amount);
   amount.classList.add("input-large");
   const spentAt = h("input", {
-    id: "expense-date", class: "input", type: "date", required: true,
+    id: "expense-date", class: "input", type: "date", required: true, ...DATE_RANGE,
     value: existing?.spent_at ?? todayIso(),
   });
 

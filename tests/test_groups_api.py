@@ -97,7 +97,7 @@ class MemberTests(GroupApiTestCase):
 
     def test_duplicate_name_is_rejected_case_insensitively(self):
         self.add_member(self.token, "Lar")
-        for name in ("Lar", "lar", " LAR "):
+        for name in ("Lar", "lar", " LAR ", "La\u200br", "\ufeffLar"):
             self.assert_error(
                 self.call("POST", f"/groups/{self.token}/members", {"name": name}),
                 409, "MEMBER_NAME_TAKEN")

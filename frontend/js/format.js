@@ -61,6 +61,9 @@ export function formatDate(iso, lang) {
 }
 
 /** Local calendar date as YYYY-MM-DD (toISOString would give the UTC date). */
+/** Dates the server accepts (backend/validation.py MIN_DATE/MAX_DATE). */
+export const DATE_RANGE = { min: "2000-01-01", max: "2099-12-31" };
+
 export function todayIso(now = new Date()) {
   const pad = (n) => String(n).padStart(2, "0");
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;

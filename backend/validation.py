@@ -16,6 +16,10 @@ from http import HTTPStatus
 from backend.errors import ApiError
 
 DATE_PATTERN = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+# Wide enough for any real bill, narrow enough to catch a mistyped year.
+MIN_DATE = date(2000, 1, 1)
+MAX_DATE = date(2099, 12, 31)
+ZERO_WIDTH_JOINER = "\u200d"
 
 
 def validation_error(field, reason):
@@ -36,7 +40,11 @@ def clean_text(data, field, max_length):
         raise validation_error(field, "required")
     if not isinstance(value, str):
         raise validation_error(field, "not_string")
-    text = unicodedata.normalize("NFC", value).strip()
+    # Lone surrogates cannot be stored as UTF-8; control characters inside
+    # the text are refused; invisible formatting characters are dropped.
+    if any(unicodedata.category(ch) == "Cs" for ch in value):
+        raise validation_error(field, "invalid_characters")
+    text = remove_invisible(unicodedata.normalize("NFC", value)).strip()
     if not text:
         raise validation_error(field, "required")
     if any(unicodedata.category(ch) == "Cc" for ch in text):
@@ -44,6 +52,25 @@ def clean_text(data, field, max_length):
     if len(text) > max_length:
         raise validation_error(field, "too_long")
     return text
+
+
+def remove_invisible(text):
+    """Drop zero-width spaces, BOMs, direction marks, soft hyphens, etc.
+
+    Names pasted from chat apps often carry them; left in, "luck" and
+    "luck" + U+200B look identical but would be two different members.
+    The zero-width joiner is kept only between two emoji, where it is part
+    of the picture (family, flags, professions).
+    """
+    kept = []
+    for i, ch in enumerate(text):
+        if unicodedata.category(ch) != "Cf":
+            kept.append(ch)
+        elif ch == ZERO_WIDTH_JOINER and 0 < i < len(text) - 1 \
+                and unicodedata.category(text[i - 1]) in ("So", "Sk", "Mn") \
+                and unicodedata.category(text[i + 1]) == "So":
+            kept.append(ch)
+    return "".join(kept)
 
 
 def optional_text(data, field, max_length):
@@ -75,16 +102,18 @@ def require_int(data, field, minimum, maximum):
 
 
 def require_date(data, field):
-    """Return data[field] if it is a real calendar date as YYYY-MM-DD."""
+    """Return data[field] if it is a real date (YYYY-MM-DD) in 2000-2099."""
     value = data.get(field)
     if value is None:
         raise validation_error(field, "required")
     if not isinstance(value, str) or not DATE_PATTERN.fullmatch(value):
         raise validation_error(field, "invalid_date")
     try:
-        date.fromisoformat(value)  # rejects 2026-02-30
+        day = date.fromisoformat(value)  # rejects 2026-02-30
     except ValueError:
         raise validation_error(field, "invalid_date") from None
+    if not MIN_DATE <= day <= MAX_DATE:
+        raise validation_error(field, "out_of_range")
     return value
 
 
