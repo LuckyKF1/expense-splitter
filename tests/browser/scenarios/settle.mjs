@@ -19,8 +19,11 @@ export async function run({ token, api, ids, open, evaluate, waitFor, screenshot
 
   await check("summary: totals and the brief's balances", async () => {
     await open(g);
-    const stats = await text(".stat-value");
-    assert(stats[0] === "1,180,000 ₭" && stats[1] === "7" && stats[2] === "1", JSON.stringify(stats));
+    // Nobody has said who they are yet: the hero shows the group total.
+    const hero = await text(".hero-amount");
+    assert(hero[0] === "1,180,000 ₭", JSON.stringify(hero));
+    const meta = await text(".summary-meta");
+    assert(meta[0] === "1 expense · 7 people", JSON.stringify(meta));
     const rows = await evaluate(`[...document.querySelectorAll('.balance-row')].map(r =>
       [r.querySelector('.cell-name').textContent, r.querySelector('.cell-balance .amount').textContent,
        r.querySelector('.balance-word').textContent])`);

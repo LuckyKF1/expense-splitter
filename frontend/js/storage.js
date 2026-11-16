@@ -1,4 +1,5 @@
-// localStorage for per-device conveniences only (language, recent groups).
+// localStorage for per-device conveniences only (language, recent groups,
+// who you are in each group).
 // It can be missing or throw (private mode, blocked storage), so every
 // access is guarded and the app works without it. Real data lives on
 // the server.
@@ -45,4 +46,17 @@ export function rememberGroup(token, name) {
 
 export function forgetGroup(token) {
   storage.set("recentGroups", recentGroups().filter((g) => g.token !== token));
+}
+
+/** Which member this device's user said they are in a group, or null. */
+export function whoAmI(token) {
+  const id = storage.get("me", {})?.[token];
+  return Number.isInteger(id) ? id : null;
+}
+
+export function setWhoAmI(token, memberId) {
+  const all = { ...storage.get("me", {}) };
+  if (memberId === null) delete all[token];
+  else all[token] = memberId;
+  storage.set("me", all);
 }
