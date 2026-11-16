@@ -4,7 +4,8 @@ import { api } from "../api.js";
 import { h, icon, whileBusy } from "../dom.js";
 import { DATE_RANGE, formatDate, formatKip, parseKip, todayIso } from "../format.js";
 import { describeError, getLang, t } from "../i18n.js";
-import { field, moneyInput, needMembersCard, unbalancedBanner } from "./shared.js";
+import { whoAmI } from "../storage.js";
+import { avatar, field, moneyInput, needMembersCard, unbalancedBanner } from "./shared.js";
 
 export async function loadSettle(token) {
   const [suggestions, history] = await Promise.all([
@@ -30,11 +31,12 @@ export async function renderSettle(root, ctx) {
         ? unbalancedBanner(group.token, suggestions.blocked.unbalanced_expenses,
           suggestions.blocked.balance_total)
         : suggestionsCard(suggestions.transfers, group, ctx),
-      historyCard(history, group, ctx)),
-    recordCard(group, ctx)));
+      recordCard(group, ctx)),
+    historyCard(history, group, ctx)));
 }
 
 function suggestionsCard(transfers, group, ctx) {
+  const me = whoAmI(group.token); // highlight the transfers that involve you
   const card = h("section", { class: "card" },
     h("h2", { class: "card-title" }, t("settle.suggestionsTitle")));
   if (transfers.length === 0) {
@@ -44,7 +46,8 @@ function suggestionsCard(transfers, group, ctx) {
   card.append(
     h("p", { class: "muted small" }, t("settle.suggestionsHint")),
     h("ul", { class: "list" }, transfers.map((transfer) =>
-      h("li", { class: "transfer-row" },
+      h("li", { class: ["transfer-row", [transfer.from_member_id, transfer.to_member_id].includes(me) && "is-me"] },
+        fromTo(transfer, "md"),
         h("span", { class: "transfer-people" },
           h("strong", {}, transfer.from_name),
           h("span", { class: "transfer-arrow" }, " ", t("settle.pays"), " "),
@@ -70,6 +73,14 @@ async function markPaid(transfer, group, ctx, button) {
     ctx.toast(t("settle.recorded"));
     await ctx.refresh();
   }));
+}
+
+/** [from] → [to] as two circles with an arrow; names are spelled out next to it. */
+function fromTo(line, size) {
+  return h("span", { class: "transfer-avatars", "aria-hidden": "true" },
+    avatar({ id: line.from_member_id, name: line.from_name }, { size }),
+    icon("arrow"),
+    avatar({ id: line.to_member_id, name: line.to_name }, { size }));
 }
 
 function recordCard(group, ctx) {
@@ -111,8 +122,11 @@ function recordCard(group, ctx) {
     }
   }
 
-  return h("section", { class: "card" },
-    h("h2", { class: "card-title" }, t("settle.recordTitle")),
+  // Folded away: the suggestions above cover most payments.
+  return h("details", { class: "card record-card" },
+    h("summary", { class: "record-summary" },
+      h("span", { class: "card-title" }, t("settle.recordTitle")),
+      icon("plus")),
     h("p", { class: "muted small" }, t("settle.recordHint")),
     h("form", { class: "stack", onSubmit, novalidate: true },
       h("div", { class: "grid grid-2 grid-tight" },
@@ -135,6 +149,7 @@ function historyCard(history, group, ctx) {
   }
   card.append(h("ul", { class: "list" }, history.map((payment) =>
     h("li", { class: "list-row history-row" },
+      fromTo(payment, "sm"),
       h("span", { class: "list-main history-main" },
         h("span", {},
           h("strong", {}, payment.from_name), ` ${t("settle.pays")} `,

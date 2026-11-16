@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { h, icon } from "../dom.js";
 import { describeError, t } from "../i18n.js";
 import { forgetGroup } from "../storage.js";
+import { avatar } from "./shared.js";
 
 export async function renderMembers(root, ctx) {
   const group = ctx.group;
@@ -62,6 +63,7 @@ function memberRow(group, member, ctx) {
   function showMember() {
     row.replaceChildren(
       h("span", { class: "list-main" },
+        avatar(member),
         h("span", { class: "member-name" }, member.name),
         member.archived && h("span", { class: "badge badge-muted" }, t("members.inactive"))),
       h("span", { class: "row-actions" },

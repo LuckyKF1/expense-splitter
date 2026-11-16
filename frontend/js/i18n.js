@@ -43,6 +43,10 @@ export const MESSAGES = {
     "home.recentHint": "Groups opened on this device.",
     "home.noRecent": "No groups yet. Create one, or open a link a friend shared.",
     "home.forget": "Remove from this list",
+    "home.howTitle": "How it works",
+    "home.step1": "Create a group and add everyone's names.",
+    "home.step2": "Paste the link in your group chat. No sign-up needed.",
+    "home.step3": "Add expenses as you go; the app works out who pays whom.",
 
     "members.title": "Members",
     "members.addPlaceholder": "Name",
@@ -227,6 +231,10 @@ export const MESSAGES = {
     "home.recentHint": "ກຸ່ມທີ່ເຄີຍເປີດໃນອຸປະກອນນີ້.",
     "home.noRecent": "ຍັງບໍ່ມີກຸ່ມ. ສ້າງກຸ່ມໃໝ່ ຫຼື ເປີດລິ້ງທີ່ໝູ່ສົ່ງມາ.",
     "home.forget": "ເອົາອອກຈາກລາຍການນີ້",
+    "home.howTitle": "ໃຊ້ງານແນວໃດ",
+    "home.step1": "ສ້າງກຸ່ມ ແລະ ເພີ່ມຊື່ຂອງທຸກຄົນ.",
+    "home.step2": "ສົ່ງລິ້ງໃນກຸ່ມແຊັດ. ບໍ່ຕ້ອງສະໝັກສະມາຊິກ.",
+    "home.step3": "ເພີ່ມລາຍຈ່າຍໄປເລື້ອຍໆ; ແອັບຈະຄິດໄລ່ໃຫ້ວ່າໃຜຕ້ອງໂອນໃຫ້ໃຜ.",
 
     "members.title": "ສະມາຊິກ",
     "members.addPlaceholder": "ຊື່",

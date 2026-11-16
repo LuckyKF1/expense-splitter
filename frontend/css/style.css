@@ -307,9 +307,51 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 
 /* ---- Components ------------------------------------------------------------------- */
-.hero { padding: var(--space-4) 0; }
+/* Home page heading */
+.hero { padding: var(--space-4) 0 var(--space-2); }
+.hero-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: var(--space-3);
+  border-radius: 18px;
+  background: linear-gradient(140deg, var(--color-primary), var(--color-primary-deep));
+  color: var(--color-on-primary);
+  font-size: 30px;
+  font-weight: 700;
+  box-shadow: var(--shadow-lift);
+}
 .hero-title { font-size: 28px; line-height: 1.3; }
 .hero-tagline { color: var(--color-muted); margin-top: var(--space-1); }
+
+.how { display: flex; flex-direction: column; gap: var(--space-3); padding: 0 var(--space-1); }
+.how-title { font-size: 16px; color: var(--color-muted); }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.step { display: flex; align-items: flex-start; gap: var(--space-3); }
+.step-number {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 14px;
+}
+.group-tile {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: 700;
+}
 
 .card {
   display: flex;
@@ -446,6 +488,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .row-actions { display: flex; flex: none; }
 .is-inactive .member-name { color: var(--color-muted); }
+.is-inactive .avatar { background: var(--color-surface-2); color: var(--color-muted); }
+.list-row .list-main { gap: var(--space-3); }
 
 .share-block { padding-top: var(--space-2); border-top: 1px solid var(--color-border); }
 
@@ -754,6 +798,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .person-chip:hover { background: #fff; }
 .person-chip-name { min-width: 0; overflow-wrap: anywhere; text-align: left; }
 
+.summary-layout { display: flex; flex-direction: column; gap: var(--space-4); }
+.summary-side { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+@media (min-width: 1024px) {
+  .summary-layout { display: grid; grid-template-columns: minmax(300px, 2fr) minmax(0, 3fr); align-items: start; }
+  .summary-side { position: sticky; top: calc(56px + var(--space-5)); }
+}
+
 .summary-meta { color: var(--color-muted); font-size: 14px; padding: 0 var(--space-1); }
 
 .balance { display: inline-flex; flex-direction: column; align-items: flex-end; }
@@ -839,29 +890,62 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .banner-fix .icon { width: 18px; height: 18px; }
 
 /* ---- Settle up ------------------------------------------------------------------------------ */
+/* Phone:  (S) → (L)            200,000 ₭      Tablet+: one line
+           Saeng pays Luck                      (S) → (L)  Saeng pays Luck  200,000 ₭  [Paid]
+           [        Mark as paid        ]                                                    */
 .transfer-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: "people amount" "action action";
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "avatars amount" "people people" "action action";
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) 0;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-4) 0;
   border-top: 1px solid var(--color-border);
 }
-.transfer-row:first-child { border-top: 0; }
+.transfer-row:first-child { border-top: 0; padding-top: var(--space-2); }
+.transfer-row.is-me {
+  margin: 0 calc(-1 * var(--space-3));
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  border-top-color: transparent;
+  background: var(--color-primary-soft);
+}
+.transfer-row.is-me + .transfer-row { border-top-color: transparent; }
+.transfer-avatars { grid-area: avatars; display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-muted); }
+.transfer-avatars .icon { width: 18px; height: 18px; }
 .transfer-people { grid-area: people; overflow-wrap: anywhere; }
 .transfer-arrow { color: var(--color-muted); }
-.transfer-amount { grid-area: amount; }
+.transfer-amount { grid-area: amount; justify-self: end; font-size: 18px; }
 .transfer-action { grid-area: action; justify-self: stretch; }
 @media (min-width: 768px) {
   .transfer-row {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-areas: "people amount action";
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "avatars people amount action";
   }
+  .transfer-row:first-child { padding-top: var(--space-4); }
   .transfer-action { justify-self: end; }
 }
 
+.history-row .transfer-avatars .icon { width: 14px; height: 14px; }
 .history-main { flex-direction: column; align-items: flex-start; gap: 0; }
+
+/* "Record another payment", folded. */
+.record-card { gap: var(--space-3); }
+.record-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  margin: calc(-1 * var(--space-2)) 0;
+  cursor: pointer;
+  list-style: none;
+}
+.record-summary::-webkit-details-marker { display: none; }
+.record-summary .card-title { font-weight: 700; }
+.record-summary .icon { color: var(--color-primary); transition: transform 0.15s ease; }
+.record-card[open] .record-summary .icon { transform: rotate(45deg); }
+.record-card:not([open]) { gap: 0; }
 
 /* ---- Toast ---------------------------------------------------------------------------- */
 .toast {

@@ -31,18 +31,19 @@ export async function renderSummary(root, ctx) {
   const me = people.find((m) => m.id === whoAmI(group.token)) ?? null;
   const canSettle = summary.is_balanced && people.some((m) => m.balance !== 0);
 
+  // Desktop: your card on the left, everyone on the right. Phone: one column.
   root.append(
-    heroCard(summary, people, me, canSettle, ctx),
-    metaLine(summary));
-  if (!summary.is_balanced) {
-    root.append(unbalancedBanner(group.token, summary.unbalanced_expenses, summary.balance_total));
-  }
-  root.append(
-    summary.expense_count === 0
-      ? h("section", { class: "card state-card" },
-        h("p", { class: "muted" }, t("summary.empty")),
-        h("a", { class: "btn btn-primary", href: newPath }, icon("plus"), t("expenses.add")))
-      : balancesCard(people, me, canSettle, group),
+    h("div", { class: "summary-layout" },
+      h("div", { class: "summary-side" },
+        heroCard(summary, people, me, canSettle, ctx),
+        metaLine(summary),
+        !summary.is_balanced
+          && unbalancedBanner(group.token, summary.unbalanced_expenses, summary.balance_total)),
+      summary.expense_count === 0
+        ? h("section", { class: "card state-card" },
+          h("p", { class: "muted" }, t("summary.empty")),
+          h("a", { class: "btn btn-primary", href: newPath }, icon("plus"), t("expenses.add")))
+        : balancesCard(people, me, canSettle, group)),
     h("a", { class: "fab", href: newPath, "aria-label": t("expenses.add"), title: t("expenses.add") },
       icon("plus")));
 }

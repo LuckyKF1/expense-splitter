@@ -3,16 +3,30 @@
 import { api } from "../api.js";
 import { h, icon } from "../dom.js";
 import { describeError, t } from "../i18n.js";
+import { initial } from "../people.js";
 import { forgetGroup, recentGroups, rememberGroup } from "../storage.js";
 
 export async function renderHome(root, ctx) {
   document.title = t("app.name");
   root.append(
     h("section", { class: "hero" },
+      h("span", { class: "hero-mark", "aria-hidden": "true" }, "₭"),
       h("h1", { class: "hero-title" }, t("app.name")),
       h("p", { class: "hero-tagline" }, t("app.tagline"))),
-    h("div", { class: "grid grid-2" }, createGroupCard(ctx), recentGroupsCard(ctx)),
+    h("div", { class: "grid grid-2" },
+      h("div", { class: "stack-lg" }, createGroupCard(ctx), howItWorks()),
+      recentGroupsCard(ctx)),
   );
+}
+
+/** Three steps, so someone opening the bare address knows what to do. */
+function howItWorks() {
+  return h("section", { class: "how" },
+    h("h2", { class: "how-title" }, t("home.howTitle")),
+    h("ol", { class: "steps" }, ["home.step1", "home.step2", "home.step3"].map((key, i) =>
+      h("li", { class: "step" },
+        h("span", { class: "step-number", "aria-hidden": "true" }, String(i + 1)),
+        h("span", {}, t(key))))));
 }
 
 function createGroupCard(ctx) {
@@ -58,6 +72,7 @@ function recentGroupsCard(ctx) {
   }
   card.append(h("ul", { class: "list" }, groups.map((group) =>
     h("li", { class: "list-row" },
+      h("span", { class: "group-tile", "aria-hidden": "true" }, initial(group.name)),
       h("a", { class: "list-link", href: `/g/${group.token}` }, group.name),
       h("button", {
         class: "btn-icon", type: "button", title: t("home.forget"),

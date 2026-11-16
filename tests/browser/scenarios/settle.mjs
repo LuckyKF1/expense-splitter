@@ -82,6 +82,14 @@ export async function run({ token, api, ids, open, evaluate, waitFor, screenshot
     assert(history.length === 1 && history[0].includes("ter") && history[0].includes("168,571"), JSON.stringify(history));
   });
 
+  await check("the 'record another payment' form starts folded and opens on tap", async () => {
+    assert(!(await evaluate("document.querySelector('.record-card').open")), "should start folded");
+    assert(!(await evaluate("!!document.querySelector('#pay-from').checkVisibility()")), "form visible while folded");
+    await evaluate("document.querySelector('.record-summary').click()");
+    assert(await evaluate("document.querySelector('.record-card').open"), "did not open");
+    assert(await evaluate("!!document.querySelector('#pay-from').checkVisibility()"), "form still hidden");
+  });
+
   await check("record a partial payment with the form", async () => {
     await evaluate(`(() => {
       document.querySelector('#pay-from').value = '${ids.bick}';
