@@ -1,7 +1,8 @@
-# Local database (contains real user data)
+# Local database and its backups (contain real user data)
 data/*.db
 data/*.db-wal
 data/*.db-shm
+data/backups/
 
 __pycache__/
 *.pyc
