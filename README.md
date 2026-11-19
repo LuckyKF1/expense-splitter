@@ -44,8 +44,9 @@ Every relay terminates HTTPS and can see traffic, this computer must stay
 on, and anyone with a group link can view and edit that group.
 
 Each group can designate one active member as its Admin. The Admin label is
-for coordination: payment controls are shown on devices that selected that
-member under “Who are you?”. It is not authentication or an access-control
+for coordination: once assigned, payment controls are shown only on devices
+that selected that member under “Who are you?” (without an Admin, everyone
+sees them). It is not authentication or an access-control
 boundary; anyone with the group link can still edit the group or call its API.
 
 The Members page can download a JSON backup (including the group link and

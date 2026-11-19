@@ -24,17 +24,17 @@ export async function renderSettle(root, ctx) {
   root.append(h("h1", { class: "page-title" }, t("settle.title")));
   if (!group.members.some((m) => !m.archived)) return root.append(needMembersCard(group.token));
   const { suggestions, history } = ctx.data;
-  const isAdmin = group.admin_member_id !== null
-    && whoAmI(group.token) === group.admin_member_id;
+  // Without an Admin everyone manages payments (a new group needs no setup);
+  // once one is assigned, only the device that chose the Admin does.
+  const hasAdmin = group.admin_member_id !== null;
+  const isAdmin = !hasAdmin || whoAmI(group.token) === group.admin_member_id;
 
   root.append(h("div", { class: "grid grid-main-side" },
     h("div", { class: "stack-lg" },
-      !isAdmin && h("p", { class: "muted small" },
-        group.admin_member_id === null
-          ? t("settle.noAdmin")
-          : t("settle.adminHint", {
-            name: group.members.find((member) => member.id === group.admin_member_id)?.name ?? "",
-          })),
+      !isAdmin && h("p", { class: "muted small admin-hint" },
+        t("settle.adminHint", {
+          name: group.members.find((member) => member.id === group.admin_member_id)?.name ?? "",
+        })),
       suggestions.blocked
         ? unbalancedBanner(group.token, suggestions.blocked.unbalanced_expenses,
           suggestions.blocked.balance_total)

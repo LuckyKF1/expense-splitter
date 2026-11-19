@@ -57,7 +57,7 @@ export const MESSAGES = {
     "members.empty": "Add everyone who shares the costs.",
     "members.inactive": "Inactive",
     "members.admin": "Admin",
-    "members.adminHint": "Choose one active member as Admin. Payment controls are shown only when this device identifies as that member; this is not a security restriction.",
+    "members.adminHint": "Optional: choose an Admin to keep payment records tidy. Then only the device that picked that name under \"Who are you?\" can record or delete payments. Without an Admin, everyone can. (Not a security lock: anyone with the link can still edit.)",
     "members.makeAdmin": "Make {name} the Admin",
     "members.removeAdmin": "Remove {name} as Admin",
     "members.count": "{count} active",
@@ -158,7 +158,6 @@ export const MESSAGES = {
     "unbalanced.body": "Paid amounts differ from the totals by {amount} overall. Fix these before settling up:",
 
     "settle.title": "Settle up",
-    "settle.noAdmin": "No Admin is assigned yet. Choose one on the Members page to manage payment records.",
     "settle.adminHint": "Payment records are managed by {name} (Admin).",
     "settle.suggestionsTitle": "Suggested transfers",
     "settle.suggestionsHint": "The fewest transfers that make everyone even.",
@@ -276,7 +275,7 @@ export const MESSAGES = {
     "members.empty": "ເພີ່ມທຸກຄົນທີ່ຮ່ວມຈ່າຍ.",
     "members.inactive": "ປິດໃຊ້ງານ",
     "members.admin": "ຜູ້ດູແລ",
-    "members.adminHint": "ເລືອກສະມາຊິກທີ່ໃຊ້ງານໜຶ່ງຄົນເປັນຜູ້ດູແລ. ປຸ່ມຈັດການການໂອນຈະສະແດງເມື່ອອຸປະກອນນີ້ເລືອກຊື່ຄົນນັ້ນ; ບໍ່ແມ່ນການຈຳກັດສິດທິ.",
+    "members.adminHint": "ບໍ່ບັງຄັບ: ເລືອກຜູ້ດູແລເພື່ອໃຫ້ລາຍການໂອນເປັນລະບຽບ. ຈາກນັ້ນມີແຕ່ເຄື່ອງທີ່ເລືອກຊື່ຜູ້ດູແລໃນ \"ທ່ານແມ່ນໃຜ?\" ທີ່ບັນທຶກ ຫຼື ລຶບລາຍການໂອນໄດ້. ຖ້າບໍ່ມີຜູ້ດູແລ, ທຸກຄົນເຮັດໄດ້. (ບໍ່ແມ່ນການລັອກຄວາມປອດໄພ: ຜູ້ມີລິ້ງຍັງແກ້ໄຂໄດ້.)",
     "members.makeAdmin": "ຕັ້ງ {name} ເປັນຜູ້ດູແລ",
     "members.removeAdmin": "ຖອນ {name} ຈາກຜູ້ດູແລ",
     "members.count": "ໃຊ້ງານ {count} ຄົນ",
@@ -377,7 +376,6 @@ export const MESSAGES = {
     "unbalanced.body": "ຍອດທີ່ຈ່າຍຕ່າງຈາກຍອດລວມທັງໝົດ {amount}. ກະລຸນາແກ້ໄຂລາຍການເຫຼົ່ານີ້ກ່ອນຊຳລະເງິນ:",
 
     "settle.title": "ຊຳລະເງິນ",
-    "settle.noAdmin": "ຍັງບໍ່ໄດ້ຕັ້ງຜູ້ດູແລ. ເລືອກຜູ້ດູແລໃນໜ້າສະມາຊິກເພື່ອຈັດການລາຍການໂອນ.",
     "settle.adminHint": "ລາຍການໂອນຈັດການໂດຍ {name} (ຜູ້ດູແລ).",
     "settle.suggestionsTitle": "ການໂອນທີ່ແນະນຳ",
     "settle.suggestionsHint": "ໂອນໜ້ອຍຄັ້ງທີ່ສຸດ ເພື່ອໃຫ້ທຸກຄົນເທົ່າກັນ.",
