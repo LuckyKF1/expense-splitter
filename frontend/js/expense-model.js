@@ -72,3 +72,21 @@ export function sharePreview(totalText, participantIds) {
     shares: splitEqually(total, participantIds),
   };
 }
+
+/**
+ * Consecutive expenses on the same date, with that day's total.
+ * The API lists newest first, so days come out newest first too.
+ */
+export function groupByDay(expenses) {
+  const days = [];
+  for (const expense of expenses) {
+    const last = days.at(-1);
+    if (last?.date === expense.spent_at) {
+      last.expenses.push(expense);
+      last.total += expense.amount;
+    } else {
+      days.push({ date: expense.spent_at, total: expense.amount, expenses: [expense] });
+    }
+  }
+  return days;
+}

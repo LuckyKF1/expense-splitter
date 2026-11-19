@@ -3,6 +3,14 @@
 import { h, icon } from "../dom.js";
 import { formatKip, groupDigits, parseKip } from "../format.js";
 import { t } from "../i18n.js";
+import { avatarTone, initial } from "../people.js";
+
+/** A member's coloured circle with their initial. Decorative: the name is always shown next to it. */
+export function avatar(member, { size = "md" } = {}) {
+  return h("span", {
+    class: ["avatar", `avatar-${size}`, `tone-${avatarTone(member.id)}`], "aria-hidden": "true",
+  }, initial(member.name));
+}
 
 /** Label + input (+ optional hint), stacked. */
 export function field(id, label, input, hint) {

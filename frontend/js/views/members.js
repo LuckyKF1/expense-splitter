@@ -4,6 +4,8 @@ import { api } from "../api.js";
 import { h, icon } from "../dom.js";
 import { describeError, t } from "../i18n.js";
 import { forgetGroup } from "../storage.js";
+import { downloadGroupBackup, downloadGroupCsv } from "../export.js";
+import { avatar } from "./shared.js";
 
 export async function renderMembers(root, ctx) {
   const group = ctx.group;
@@ -22,6 +24,7 @@ function membersCard(group, ctx) {
     h("div", { class: "card-header" },
       h("h2", { class: "card-title" }, t("members.title")),
       h("span", { class: "badge" }, t("members.count", { count: active }))),
+    h("p", { class: "muted small" }, t("members.adminHint")),
     addMemberForm(group, ctx),
     group.members.length === 0
       ? h("p", { class: "empty" }, t("members.empty"))
@@ -62,10 +65,21 @@ function memberRow(group, member, ctx) {
   function showMember() {
     row.replaceChildren(
       h("span", { class: "list-main" },
+        avatar(member),
         h("span", { class: "member-name" }, member.name),
+        group.admin_member_id === member.id
+          && h("span", { class: "badge" }, t("members.admin")),
         member.archived && h("span", { class: "badge badge-muted" }, t("members.inactive"))),
       h("span", { class: "row-actions" },
         iconButton("edit", t("members.rename", { name: member.name }), showRenameForm),
+        // A star: outlined to make someone the Admin, filled on the current Admin.
+        !member.archived && iconButton(
+          "star",
+          group.admin_member_id === member.id
+            ? t("members.removeAdmin", { name: member.name })
+            : t("members.makeAdmin", { name: member.name }),
+          () => setAdmin(group.admin_member_id === member.id ? null : member.id),
+          group.admin_member_id === member.id && "admin-on"),
         member.archived
           ? iconButton("restore", `${t("action.restore")}: ${member.name}`,
             () => setArchived(false))
@@ -104,6 +118,13 @@ function memberRow(group, member, ctx) {
   async function setArchived(archived) {
     await ctx.run(async () => {
       await api.updateMember(group.token, member.id, { archived });
+      await ctx.refresh();
+    });
+  }
+
+  async function setAdmin(memberId) {
+    await ctx.run(async () => {
+      await api.setGroupAdmin(group.token, memberId);
       await ctx.refresh();
     });
   }
@@ -148,6 +169,8 @@ function groupCard(group, ctx) {
     }
   }
 
+  const exportAction = (action) => () => ctx.run(() => action());
+
   return h("section", { class: "card" },
     h("h2", { class: "card-title" }, t("group.title")),
     h("form", { class: "stack-sm", onSubmit, novalidate: true },
@@ -158,7 +181,23 @@ function groupCard(group, ctx) {
     h("div", { class: "stack-sm share-block" },
       h("button", { class: "btn btn-primary btn-block", type: "button", onClick: ctx.share },
         icon("share"), t("action.share")),
-      h("p", { class: "muted small" }, t("group.shareHint"))));
+      h("p", { class: "muted small" }, t("group.shareHint"))),
+    h("div", { class: "stack-sm export-block" },
+      h("h3", { class: "card-title" }, t("export.title")),
+      h("p", { class: "muted small" }, t("export.hint")),
+      h("button", { class: "btn btn-block", type: "button",
+        // The backup contains the group link: whoever gets the file can open and edit the group.
+        onClick: () => confirm(t("export.confirmBackup"))
+          && exportAction(() => downloadGroupBackup(api, group.token, group.name))() },
+      t("export.backup")),
+      h("button", { class: "btn btn-block", type: "button",
+        onClick: exportAction(() => downloadGroupCsv(api, group.token, group.name, "expenses")) },
+      t("export.expenses")),
+      h("button", { class: "btn btn-block", type: "button",
+        onClick: exportAction(() => downloadGroupCsv(api, group.token, group.name, "settlements")) },
+      t("export.payments")),
+      h("a", { class: "btn btn-block", href: `/g/${group.token}/activity` },
+        t("activity.open"))));
 }
 
 function dangerCard(group, ctx) {

@@ -6,8 +6,10 @@ import { api } from "./api.js";
 import { h, icon } from "./dom.js";
 import { describeError, getLang, setLang, t } from "./i18n.js";
 import { rememberGroup } from "./storage.js";
+import { getTheme, nextTheme, setTheme } from "./theme.js";
 import { loadExpenseForm, renderExpenseForm } from "./views/expense-form.js";
 import { loadExpenses, renderExpenses } from "./views/expenses.js";
+import { loadActivity, renderActivity } from "./views/activity.js";
 import { renderHome } from "./views/home.js";
 import { renderMembers } from "./views/members.js";
 import { loadSettle, renderSettle } from "./views/settle.js";
@@ -27,6 +29,8 @@ const NAV_ITEMS = [
 // instead of two (this matters a lot over the tunnel).
 const ROUTES = [
   { pattern: new RegExp("^/$"), view: renderHome },
+  { pattern: new RegExp(`^/g/${TOKEN}/activity/?$`), view: renderActivity,
+    load: loadActivity, nav: "members" },
   { pattern: new RegExp(`^/g/${TOKEN}/?$`), view: renderSummary, load: loadSummary, nav: "summary" },
   { pattern: new RegExp(`^/g/${TOKEN}/expenses/?$`), view: renderExpenses, load: loadExpenses,
     nav: "expenses" },
@@ -46,6 +50,7 @@ const shell = {
   brandText: document.getElementById("brand-text"),
   shareButton: document.getElementById("share-button"),
   langButton: document.getElementById("lang-toggle"),
+  themeButton: document.getElementById("theme-toggle"),
   toast: document.getElementById("toast"),
 };
 
@@ -123,6 +128,7 @@ function updateShell(route, group) {
   shell.brand.setAttribute("aria-label", t("app.name")); // text may be hidden on phones
   shell.langButton.textContent = t("lang.switch");
   shell.langButton.setAttribute("aria-label", t("lang.switchLabel"));
+  updateThemeButton();
   shell.groupTitle.textContent = group?.name ?? "";
   shell.shareButton.hidden = !group;
   shell.shareButton.setAttribute("aria-label", t("action.share"));
@@ -178,6 +184,22 @@ shell.langButton.addEventListener("click", () => {
 });
 
 shell.shareButton.addEventListener("click", () => shareGroupLink());
+
+shell.themeButton.addEventListener("click", () => {
+  setTheme(nextTheme(getTheme()));
+  updateThemeButton();
+  toast(t(`theme.${getTheme()}`));
+});
+
+/** The icon shows the current theme; the label says it and what a tap does. */
+function updateThemeButton() {
+  const theme = getTheme();
+  const name = { auto: "themeAuto", light: "themeLight", dark: "themeDark" }[theme];
+  shell.themeButton.replaceChildren(icon(name));
+  const label = `${t(`theme.${theme}`)} · ${t("theme.change")}`;
+  shell.themeButton.setAttribute("aria-label", label);
+  shell.themeButton.title = label;
+}
 
 const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
 

@@ -2,9 +2,10 @@
 
 import { api } from "../api.js";
 import { h, icon, whileBusy } from "../dom.js";
-import { formatDate, formatKip, parseKip, todayIso } from "../format.js";
+import { DATE_RANGE, formatDate, formatKip, parseKip, todayIso } from "../format.js";
 import { describeError, getLang, t } from "../i18n.js";
-import { field, moneyInput, needMembersCard, unbalancedBanner } from "./shared.js";
+import { whoAmI } from "../storage.js";
+import { avatar, field, moneyInput, needMembersCard, unbalancedBanner } from "./shared.js";
 
 export async function loadSettle(token) {
   const [suggestions, history] = await Promise.all([
@@ -23,18 +24,27 @@ export async function renderSettle(root, ctx) {
   root.append(h("h1", { class: "page-title" }, t("settle.title")));
   if (!group.members.some((m) => !m.archived)) return root.append(needMembersCard(group.token));
   const { suggestions, history } = ctx.data;
+  // Without an Admin everyone manages payments (a new group needs no setup);
+  // once one is assigned, only the device that chose the Admin does.
+  const hasAdmin = group.admin_member_id !== null;
+  const isAdmin = !hasAdmin || whoAmI(group.token) === group.admin_member_id;
 
   root.append(h("div", { class: "grid grid-main-side" },
     h("div", { class: "stack-lg" },
+      !isAdmin && h("p", { class: "muted small admin-hint" },
+        t("settle.adminHint", {
+          name: group.members.find((member) => member.id === group.admin_member_id)?.name ?? "",
+        })),
       suggestions.blocked
         ? unbalancedBanner(group.token, suggestions.blocked.unbalanced_expenses,
           suggestions.blocked.balance_total)
-        : suggestionsCard(suggestions.transfers, group, ctx),
-      historyCard(history, group, ctx)),
-    recordCard(group, ctx)));
+        : suggestionsCard(suggestions.transfers, group, ctx, isAdmin),
+      isAdmin && recordCard(group, ctx)),
+    historyCard(history, group, ctx, isAdmin)));
 }
 
-function suggestionsCard(transfers, group, ctx) {
+function suggestionsCard(transfers, group, ctx, isAdmin) {
+  const me = whoAmI(group.token); // highlight the transfers that involve you
   const card = h("section", { class: "card" },
     h("h2", { class: "card-title" }, t("settle.suggestionsTitle")));
   if (transfers.length === 0) {
@@ -44,13 +54,14 @@ function suggestionsCard(transfers, group, ctx) {
   card.append(
     h("p", { class: "muted small" }, t("settle.suggestionsHint")),
     h("ul", { class: "list" }, transfers.map((transfer) =>
-      h("li", { class: "transfer-row" },
+      h("li", { class: ["transfer-row", [transfer.from_member_id, transfer.to_member_id].includes(me) && "is-me"] },
+        fromTo(transfer, "md"),
         h("span", { class: "transfer-people" },
           h("strong", {}, transfer.from_name),
           h("span", { class: "transfer-arrow" }, " ", t("settle.pays"), " "),
           h("strong", {}, transfer.to_name)),
         h("span", { class: "amount transfer-amount" }, formatKip(transfer.amount)),
-        h("button", {
+        isAdmin && h("button", {
           class: "btn btn-small transfer-action", type: "button",
           onClick: (event) => markPaid(transfer, group, ctx, event.currentTarget),
         }, icon("check"), t("settle.markPaid"))))));
@@ -72,6 +83,14 @@ async function markPaid(transfer, group, ctx, button) {
   }));
 }
 
+/** [from] → [to] as two circles with an arrow; names are spelled out next to it. */
+function fromTo(line, size) {
+  return h("span", { class: "transfer-avatars", "aria-hidden": "true" },
+    avatar({ id: line.from_member_id, name: line.from_name }, { size }),
+    icon("arrow"),
+    avatar({ id: line.to_member_id, name: line.to_name }, { size }));
+}
+
 function recordCard(group, ctx) {
   // Inactive members may still owe or be owed, so everyone is listed.
   const options = () => [h("option", { value: "" }, t("settle.choose")),
@@ -79,7 +98,7 @@ function recordCard(group, ctx) {
   const from = h("select", { id: "pay-from", class: "input" }, options());
   const to = h("select", { id: "pay-to", class: "input" }, options());
   const amount = moneyInput("pay-amount");
-  const paidAt = h("input", { id: "pay-date", class: "input", type: "date", value: todayIso() });
+  const paidAt = h("input", { id: "pay-date", class: "input", type: "date", value: todayIso(), ...DATE_RANGE });
   const note = h("input", {
     id: "pay-note", class: "input", maxlength: 200, autocomplete: "off",
     placeholder: t("settle.notePlaceholder"),
@@ -111,8 +130,11 @@ function recordCard(group, ctx) {
     }
   }
 
-  return h("section", { class: "card" },
-    h("h2", { class: "card-title" }, t("settle.recordTitle")),
+  // Folded away: the suggestions above cover most payments.
+  return h("details", { class: "card record-card" },
+    h("summary", { class: "record-summary" },
+      h("span", { class: "card-title" }, t("settle.recordTitle")),
+      icon("plus")),
     h("p", { class: "muted small" }, t("settle.recordHint")),
     h("form", { class: "stack", onSubmit, novalidate: true },
       h("div", { class: "grid grid-2 grid-tight" },
@@ -126,7 +148,7 @@ function recordCard(group, ctx) {
       submit));
 }
 
-function historyCard(history, group, ctx) {
+function historyCard(history, group, ctx, isAdmin) {
   const card = h("section", { class: "card" },
     h("h2", { class: "card-title" }, t("settle.historyTitle")));
   if (history.length === 0) {
@@ -135,6 +157,7 @@ function historyCard(history, group, ctx) {
   }
   card.append(h("ul", { class: "list" }, history.map((payment) =>
     h("li", { class: "list-row history-row" },
+      fromTo(payment, "sm"),
       h("span", { class: "list-main history-main" },
         h("span", {},
           h("strong", {}, payment.from_name), ` ${t("settle.pays")} `,
@@ -142,7 +165,7 @@ function historyCard(history, group, ctx) {
         h("span", { class: "muted small" },
           [formatDate(payment.paid_at, getLang()), payment.note].filter(Boolean).join(" · "))),
       h("span", { class: "amount" }, formatKip(payment.amount)),
-      h("button", {
+      isAdmin && h("button", {
         class: "btn-icon btn-icon-danger", type: "button",
         "aria-label": t("settle.deleteLabel", { from: payment.from_name, to: payment.to_name }),
         title: t("action.delete"),

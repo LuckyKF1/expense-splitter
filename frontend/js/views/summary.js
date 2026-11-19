@@ -1,10 +1,12 @@
-// "/g/:token" — totals, everyone's balance, and what blocks settling up.
+// "/g/:token" — your own balance first, then everyone's, then what blocks
+// settling up.
 
 import { api } from "../api.js";
 import { h, icon } from "../dom.js";
 import { formatKip } from "../format.js";
 import { t } from "../i18n.js";
-import { needMembersCard, unbalancedBanner } from "./shared.js";
+import { setWhoAmI, whoAmI } from "../storage.js";
+import { avatar, needMembersCard, unbalancedBanner } from "./shared.js";
 
 export const loadSummary = (token) => api.getSummary(token);
 
@@ -21,61 +23,120 @@ export async function renderSummary(root, ctx) {
 
   if (summary.member_count === 0) return root.append(needMembersCard(group.token));
 
-  if (!summary.is_balanced) {
-    root.append(unbalancedBanner(group.token, summary.unbalanced_expenses, summary.balance_total));
-  }
   // Inactive members only matter while they still have money involved.
-  const people = summary.members.filter((m) => !m.archived || m.paid || m.share || m.balance);
-  const transferred = summary.members.reduce((sum, m) => sum + m.settled_out, 0);
+  // (The summary API names the id member_id; avatars and "who am I" use id.)
+  const people = summary.members
+    .map((m) => ({ ...m, id: m.member_id }))
+    .filter((m) => !m.archived || m.paid || m.share || m.balance);
+  const me = people.find((m) => m.id === whoAmI(group.token)) ?? null;
+  const canSettle = summary.is_balanced && people.some((m) => m.balance !== 0);
 
+  // Desktop: your card on the left, everyone on the right. Phone: one column.
   root.append(
-    h("section", { class: "stats" },
-      stat(t("summary.totalSpent"), formatKip(summary.total_expenses)),
-      stat(t("summary.memberCount"), String(summary.member_count)),
-      stat(t("summary.expenseCount"), String(summary.expense_count)),
-      stat(t("summary.transferred"), formatKip(transferred))),
-    summary.expense_count === 0
-      ? h("section", { class: "card state-card" },
-        h("p", { class: "muted" }, t("summary.empty")),
-        h("a", { class: "btn btn-primary", href: newPath }, icon("plus"), t("expenses.add")))
-      : balancesCard(people, summary, group),
+    h("div", { class: "summary-layout" },
+      h("div", { class: "summary-side" },
+        heroCard(summary, people, me, canSettle, ctx),
+        metaLine(summary),
+        !summary.is_balanced
+          && unbalancedBanner(group.token, summary.unbalanced_expenses, summary.balance_total)),
+      summary.expense_count === 0
+        ? h("section", { class: "card state-card" },
+          h("p", { class: "muted" }, t("summary.empty")),
+          h("a", { class: "btn btn-primary", href: newPath }, icon("plus"), t("expenses.add")))
+        : balancesCard(people, me, canSettle, group)),
     h("a", { class: "fab", href: newPath, "aria-label": t("expenses.add"), title: t("expenses.add") },
       icon("plus")));
 }
 
-function stat(label, value) {
-  return h("div", { class: "stat" },
-    h("span", { class: "stat-label" }, label),
-    h("span", { class: "stat-value" }, value));
+/** The answer to "where do I stand?", or a prompt to say who you are. */
+function heroCard(summary, people, me, canSettle, ctx) {
+  const token = ctx.group.token;
+  const choose = async (id) => {
+    setWhoAmI(token, id);
+    await ctx.refresh();
+  };
+
+  if (!me) {
+    const active = people.filter((m) => !m.archived);
+    return h("section", { class: "card hero-card" },
+      h("p", { class: "hero-label" }, t("summary.groupTotal")),
+      heroAmount(summary.total_expenses),
+      h("div", { class: "hero-ask" },
+        h("h2", { class: "hero-question" }, t("summary.whoAreYou")),
+        h("p", { class: "hero-hint" }, t("summary.whoAreYouHint")),
+        h("div", { class: "hero-people" }, active.map((m) =>
+          h("button", { class: "person-chip", type: "button", onClick: () => choose(m.id) },
+            avatar(m, { size: "sm" }), h("span", { class: "person-chip-name" }, m.name))))));
+  }
+
+  const kind = me.balance > 0 ? "positive" : me.balance < 0 ? "negative" : "even";
+  const label = { positive: "summary.youGetBack", negative: "summary.youOwe", even: "summary.youAreEven" }[kind];
+  return h("section", { class: ["card", "hero-card", `hero-${kind}`] },
+    h("div", { class: "hero-me" },
+      avatar(me, { size: "sm" }),
+      h("span", { class: "hero-me-name" }, me.name)),
+    h("p", { class: "hero-label" }, t(label)),
+    me.balance !== 0 && heroAmount(Math.abs(me.balance)),
+    h("div", { class: "hero-actions" },
+      canSettle && me.balance !== 0 && h("a", { class: "btn btn-on-hero", href: `/g/${token}/settle` },
+        icon("settle"), t("summary.settleNow")),
+      h("button", { class: "btn-link hero-switch", type: "button", onClick: () => choose(null) },
+        t("summary.notYou", { name: me.name }))));
 }
 
-function balancesCard(people, summary, group) {
+/** The big number; smaller type for 10+ digits so it never breaks mid-number. */
+function heroAmount(amount) {
+  const text = formatKip(amount);
+  return h("p", { class: ["hero-amount", text.length > 13 && "is-long"] }, text);
+}
+
+/** "4 expenses · 5 people · 200,000 ₭ paid back" */
+function metaLine(summary) {
+  const transferred = summary.members.reduce((sum, m) => sum + m.settled_out, 0);
+  const counts = summary.expense_count === 1
+    ? t("summary.metaOne", { people: summary.member_count })
+    : t("summary.meta", { count: summary.expense_count, people: summary.member_count });
+  return h("p", { class: "summary-meta" },
+    counts,
+    transferred > 0 && ` · ${t("summary.paidBack", { amount: formatKip(transferred) })}`);
+}
+
+function balancesCard(people, me, canSettle, group) {
   const settled = people.every((m) => m.balance === 0);
+  const largest = Math.max(1, ...people.map((m) => Math.abs(m.balance)));
   return h("section", { class: "card" },
     h("h2", { class: "card-title" }, t("summary.balancesTitle")),
-    h("table", { class: "balance-table" },
-      h("thead", {}, h("tr", {},
-        h("th", { scope: "col" }, t("summary.colName")),
-        h("th", { scope: "col", class: "num" }, t("summary.colPaid")),
-        h("th", { scope: "col", class: "num" }, t("summary.colShare")),
-        h("th", { scope: "col", class: "num" }, t("summary.colTransfers")),
-        h("th", { scope: "col", class: "num" }, t("summary.colBalance")))),
-      h("tbody", {}, people.map((m) => {
-        const net = m.settled_out - m.settled_in;
-        return h("tr", { class: "balance-row" },
-          h("th", { scope: "row", class: "cell-name" }, m.name,
+    h("ul", { class: "list balance-list" }, people.map((m) => {
+      const net = m.settled_out - m.settled_in;
+      const kind = m.balance > 0 ? "positive" : m.balance < 0 ? "negative" : "even";
+      return h("li", { class: ["balance-row", m === me && "is-me"] },
+        avatar(m),
+        h("div", { class: "balance-main" },
+          h("div", { class: "balance-head" },
+            h("span", { class: "cell-name" }, m.name),
+            m === me && h("span", { class: "badge" }, t("summary.you")),
             m.archived && h("span", { class: "badge badge-muted" }, t("members.inactive"))),
-          h("td", { class: "num cell-paid" }, formatKip(m.paid)),
-          h("td", { class: "num cell-share" }, formatKip(m.share)),
-          h("td", { class: "num cell-transfers" }, net ? formatKip(net, { signed: true }) : "–"),
-          h("td", { class: "num cell-balance" }, balance(m.balance)),
-          h("td", { class: "cell-detail" },
-            t("summary.paidShare", { paid: formatKip(m.paid), share: formatKip(m.share) })));
-      }))),
+          h("p", { class: "cell-detail" }, net
+            ? t("summary.detailTransfers", {
+              paid: formatKip(m.paid), share: formatKip(m.share), transfers: formatKip(net, { signed: true }),
+            })
+            : t("summary.detail", { paid: formatKip(m.paid), share: formatKip(m.share) }))),
+        h("div", { class: "cell-balance" }, balance(m.balance)),
+        // Length shows who is furthest from even; colour and the word
+        // next to the amount say which way.
+        balanceBar(kind, Math.abs(m.balance) / largest));
+    })),
     settled
       ? h("p", { class: "all-settled" }, icon("check"), t("summary.allSettled"))
-      : summary.is_balanced && h("a", { class: "btn btn-primary", href: `/g/${group.token}/settle` },
+      : canSettle && !me && h("a", { class: "btn btn-primary", href: `/g/${group.token}/settle` },
         icon("settle"), t("summary.settleCta")));
+}
+
+function balanceBar(kind, fraction) {
+  const fill = h("span", { class: `balance-bar-fill bar-${kind}` });
+  // Set through the style property: CSP (style-src 'self') blocks style="" attributes.
+  fill.style.width = `${Math.round(fraction * 100)}%`;
+  return h("div", { class: "balance-bar", "aria-hidden": "true" }, fill);
 }
 
 /** Coloured amount plus a word, so meaning never relies on colour alone. */

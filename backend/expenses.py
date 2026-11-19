@@ -10,6 +10,7 @@ Two invariants live here because SQL CHECKs cannot span tables:
 
 from http import HTTPStatus
 
+from backend import audit
 from backend.errors import ApiError
 from backend.groups import find_group
 from backend.validation import (clean_text, is_strict_int, require_date,
@@ -106,7 +107,7 @@ def check_members(conn, group_id, expense, already_included=frozenset()):
 # ---- Operations -----------------------------------------------------------------
 
 
-def create_expense(conn, token, data):
+def create_expense(conn, token, data, actor_member_id=None):
     expense = parse_expense(data)
     group = find_group(conn, token)
     check_members(conn, group["id"], expense)
@@ -122,10 +123,13 @@ def create_expense(conn, token, data):
             (group["id"], expense["description"], expense["amount"],
              expense["spent_at"])).fetchone()[0]
         write_lines(conn, expense_id, expense)
-    return get_expense(conn, token, expense_id)
+        result = load_expenses(conn, group["id"], expense_id)[0]
+        audit.record(conn, group["id"], actor_member_id, "created", "expense",
+                     expense_id, after=result)
+    return result
 
 
-def update_expense(conn, token, expense_id, data):
+def update_expense(conn, token, expense_id, data, actor_member_id=None):
     """Full replacement (PUT): payers and participants are rewritten."""
     expense = parse_expense(data)
     group = find_group(conn, token)
@@ -144,16 +148,24 @@ def update_expense(conn, token, expense_id, data):
         conn.execute("DELETE FROM expense_payers WHERE expense_id = ?", (expense_id,))
         conn.execute("DELETE FROM expense_shares WHERE expense_id = ?", (expense_id,))
         write_lines(conn, expense_id, expense)
-    return get_expense(conn, token, expense_id)
+        result = load_expenses(conn, group["id"], expense_id)[0]
+        audit.record(conn, group["id"], actor_member_id, "updated", "expense",
+                     expense_id, current[0], result)
+    return result
 
 
-def delete_expense(conn, token, expense_id):
+def delete_expense(conn, token, expense_id, actor_member_id=None):
     group = find_group(conn, token)
+    found = load_expenses(conn, group["id"], expense_id)
+    if not found:
+        raise expense_not_found()
     with conn:  # payers and shares cascade
         deleted = conn.execute("DELETE FROM expenses WHERE id = ? AND group_id = ?",
                                (expense_id, group["id"])).rowcount
-    if not deleted:
-        raise expense_not_found()
+        if not deleted:
+            raise expense_not_found()
+        audit.record(conn, group["id"], actor_member_id, "deleted", "expense",
+                     expense_id, before=found[0])
 
 
 def get_expense(conn, token, expense_id):

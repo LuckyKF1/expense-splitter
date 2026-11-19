@@ -54,6 +54,13 @@ const ICON_PATHS = {
   close: ["M6 6l12 12", "M18 6L6 18"],
   check: ["M5 12l5 5L20 7"],
   back: ["M15 6l-6 6 6 6"],
+  arrow: ["M5 12h14", "M13 6l6 6-6 6"],
+  star: ["M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"],
+  // Theme button: automatic (half-filled circle), light (sun), dark (moon).
+  themeAuto: ["M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z", "M12 3v18", "M12 7h4", "M12 11h5.5", "M12 15h5", "M12 19h2"],
+  themeLight: ["M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z", "M12 2v2", "M12 20v2", "M2 12h2", "M20 12h2",
+    "M4.9 4.9l1.4 1.4", "M17.7 17.7l1.4 1.4", "M4.9 19.1l1.4-1.4", "M17.7 6.3l1.4-1.4"],
+  themeDark: ["M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"],
 };
 
 export function icon(name, { label } = {}) {

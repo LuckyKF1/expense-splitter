@@ -20,7 +20,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from backend import database, expenses, groups, settle_up, summary
+from backend import audit, database, expenses, exports, groups, settle_up, summary
 from backend.errors import ApiError
 
 FRONTEND_DIR = database.PROJECT_ROOT / "frontend"
@@ -76,7 +76,15 @@ def get_group(request, token):
 def rename_group(request, token):
     data = request.read_json()
     with request.db() as conn:
-        return HTTPStatus.OK, groups.rename_group(conn, token, data)
+        return HTTPStatus.OK, groups.rename_group(
+            conn, token, data, actor_member_id(request))
+
+
+def set_group_admin(request, token):
+    data = request.read_json()
+    with request.db() as conn:
+        return HTTPStatus.OK, groups.set_group_admin(
+            conn, token, data, actor_member_id(request))
 
 
 def delete_group(request, token):
@@ -88,18 +96,20 @@ def delete_group(request, token):
 def add_member(request, token):
     data = request.read_json()
     with request.db() as conn:
-        return HTTPStatus.CREATED, groups.add_member(conn, token, data)
+        return HTTPStatus.CREATED, groups.add_member(
+            conn, token, data, actor_member_id(request))
 
 
 def update_member(request, token, member_id):
     data = request.read_json()
     with request.db() as conn:
-        return HTTPStatus.OK, groups.update_member(conn, token, int(member_id), data)
+        return HTTPStatus.OK, groups.update_member(
+            conn, token, int(member_id), data, actor_member_id(request))
 
 
 def delete_member(request, token, member_id):
     with request.db() as conn:
-        groups.delete_member(conn, token, int(member_id))
+        groups.delete_member(conn, token, int(member_id), actor_member_id(request))
     return HTTPStatus.NO_CONTENT, None
 
 
@@ -111,7 +121,8 @@ def list_expenses(request, token):
 def create_expense(request, token):
     data = request.read_json()
     with request.db() as conn:
-        return HTTPStatus.CREATED, expenses.create_expense(conn, token, data)
+        return HTTPStatus.CREATED, expenses.create_expense(
+            conn, token, data, actor_member_id(request))
 
 
 def get_expense(request, token, expense_id):
@@ -122,18 +133,31 @@ def get_expense(request, token, expense_id):
 def update_expense(request, token, expense_id):
     data = request.read_json()
     with request.db() as conn:
-        return HTTPStatus.OK, expenses.update_expense(conn, token, int(expense_id), data)
+        return HTTPStatus.OK, expenses.update_expense(
+            conn, token, int(expense_id), data, actor_member_id(request))
 
 
 def delete_expense(request, token, expense_id):
     with request.db() as conn:
-        expenses.delete_expense(conn, token, int(expense_id))
+        expenses.delete_expense(
+            conn, token, int(expense_id), actor_member_id(request))
     return HTTPStatus.NO_CONTENT, None
 
 
 def get_summary(request, token):
     with request.db() as conn:
         return HTTPStatus.OK, summary.get_summary(conn, token)
+
+
+def get_activity(request, token):
+    with request.db() as conn:
+        group = groups.find_group(conn, token)
+        return HTTPStatus.OK, audit.list_events(conn, group["id"])
+
+
+def export_group(request, token):
+    with request.db() as conn:
+        return HTTPStatus.OK, exports.export_group(conn, token)
 
 
 def get_settlement_suggestions(request, token):
@@ -149,12 +173,14 @@ def list_settlements(request, token):
 def record_settlement(request, token):
     data = request.read_json()
     with request.db() as conn:
-        return HTTPStatus.CREATED, settle_up.record_settlement(conn, token, data)
+        return HTTPStatus.CREATED, settle_up.record_settlement(
+            conn, token, data, actor_member_id(request))
 
 
 def delete_settlement(request, token, settlement_id):
     with request.db() as conn:
-        settle_up.delete_settlement(conn, token, int(settlement_id))
+        settle_up.delete_settlement(
+            conn, token, int(settlement_id), actor_member_id(request))
     return HTTPStatus.NO_CONTENT, None
 
 
@@ -168,6 +194,7 @@ ROUTES = [
     ("POST", r"/api/groups", create_group),
     ("GET", rf"/api/groups/{TOKEN}", get_group),
     ("PATCH", rf"/api/groups/{TOKEN}", rename_group),
+    ("PATCH", rf"/api/groups/{TOKEN}/admin", set_group_admin),
     ("DELETE", rf"/api/groups/{TOKEN}", delete_group),
     ("POST", rf"/api/groups/{TOKEN}/members", add_member),
     ("PATCH", rf"/api/groups/{TOKEN}/members/{MEMBER_ID}", update_member),
@@ -178,6 +205,8 @@ ROUTES = [
     ("PUT", rf"/api/groups/{TOKEN}/expenses/{EXPENSE_ID}", update_expense),
     ("DELETE", rf"/api/groups/{TOKEN}/expenses/{EXPENSE_ID}", delete_expense),
     ("GET", rf"/api/groups/{TOKEN}/summary", get_summary),
+    ("GET", rf"/api/groups/{TOKEN}/activity", get_activity),
+    ("GET", rf"/api/groups/{TOKEN}/export", export_group),
     ("GET", rf"/api/groups/{TOKEN}/settlement", get_settlement_suggestions),
     ("GET", rf"/api/groups/{TOKEN}/settlements", list_settlements),
     ("POST", rf"/api/groups/{TOKEN}/settlements", record_settlement),
@@ -310,9 +339,8 @@ class RequestHandler(BaseHTTPRequestHandler):
         body = file_path.read_bytes()
         csp = None
         if file_path.name == "index.html":
-            body, import_map = versioned_index(body)
-            digest = base64.b64encode(hashlib.sha256(import_map).digest()).decode()
-            csp = CSP_TEMPLATE.format(extra_script=f" 'sha256-{digest}'")
+            body = versioned_index(body)
+            csp = CSP_TEMPLATE.format(extra_script=inline_script_hashes(body))
 
         # Caching. A URL carrying the file's current version (?v=<hash>,
         # written into index.html) can be kept forever: new code gets a new
@@ -378,6 +406,15 @@ def error_body(code, message, details=None):
     return {"error": {"code": code, "message": message, "details": details or {}}}
 
 
+def actor_member_id(request):
+    """Best-effort identity from the device's “Who are you?” choice."""
+    value = request.headers.get("X-Actor-Member-ID", "")
+    if not re.fullmatch(r"[0-9]{1,18}", value):
+        return None
+    member_id = int(value)
+    return member_id if member_id > 0 else None
+
+
 def asset_version(content):
     """Short content hash: changes whenever the file's bytes change."""
     return hashlib.sha256(content).hexdigest()[:16]
@@ -394,8 +431,8 @@ def versioned_index(html):
       discover imports one level (= one round trip) at a time.
     - The stylesheet and entry script get ?v= as well.
 
-    Returns (html, import_map_json) so the caller can allow the inline
-    import map in the CSP by its hash.
+    The import map is an inline script; inline_script_hashes() lets the
+    CSP allow it (and the theme script in index.html) by hash.
     """
     def url(path):
         return f"/{path.relative_to(FRONTEND_DIR).as_posix()}?v={asset_version(path.read_bytes())}"
@@ -413,7 +450,17 @@ def versioned_index(html):
     html = html.replace(b'  <link rel="stylesheet" href="/css/style.css">\n', b"", 1)
     html = html.replace(b'  <script type="module" src="/js/app.js"></script>\n', b"", 1)
     # The import map must come before anything that loads a module.
-    return html.replace(b"</head>", b"  " + head + b"</head>", 1), import_map
+    return html.replace(b"</head>", b"  " + head + b"</head>", 1)
+
+
+INLINE_SCRIPT = re.compile(rb"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.S)
+
+
+def inline_script_hashes(html):
+    """CSP sources allowing exactly the inline scripts in `html`, by hash
+    (never 'unsafe-inline', which would also allow injected scripts)."""
+    return "".join(f" 'sha256-{base64.b64encode(hashlib.sha256(body).digest()).decode()}'"
+                   for body in INLINE_SCRIPT.findall(html))
 
 
 def resolve_static_path(url_path):

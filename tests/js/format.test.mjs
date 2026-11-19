@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { formatKip, parseKip, splitEqually, todayIso } from "../../frontend/js/format.js";
+import { formatDateTime, formatKip, parseKip, splitEqually, todayIso } from "../../frontend/js/format.js";
 
 const NBSP = "\u00a0";
 
@@ -60,4 +60,16 @@ test("todayIso uses the local date, not UTC", () => {
   // 00:30 on Nov 10 in Laos (UTC+7) is still Nov 9 in UTC.
   const lateNight = new Date(2026, 10, 10, 0, 30);
   assert.equal(todayIso(lateNight), "2026-11-10");
+});
+
+test("formatDateTime shows a UTC server timestamp in local time", () => {
+  // The server stores UTC; Laos is UTC+7 all year.
+  const previous = process.env.TZ;
+  process.env.TZ = "Asia/Vientiane";
+  try {
+    assert.equal(formatDateTime("2026-11-18T08:20:27Z", "en"), "18 Nov 2026 15:20");
+    assert.equal(formatDateTime("2026-11-18T20:05:00Z", "lo"), "19 ພ.ຈ. 2026 03:05");
+  } finally {
+    process.env.TZ = previous;
+  }
 });
