@@ -475,6 +475,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .btn-icon:hover { background: var(--color-surface-2); color: var(--color-text); }
 .btn-icon-danger:hover { background: var(--color-danger-soft); color: var(--color-danger); }
+/* The current Admin's star is filled. */
+.btn-icon-admin-on { color: var(--tone-6); }
+.btn-icon-admin-on .icon { fill: currentColor; }
 
 .badge {
   display: inline-block;

@@ -57,6 +57,23 @@ export async function run({ token, open, evaluate, waitFor, screenshot, text, ty
     await waitFor(`${row("kham")}?.querySelector('.list-main .badge')?.textContent === 'Admin'`);
   });
 
+  await check("the JSON backup asks first, because it contains the group link", async () => {
+    await open(membersPath);
+    const asked = await evaluate(`(async () => {
+      const questions = [];
+      let exports = 0;
+      window.confirm = (q) => { questions.push(q); return false; };
+      const realFetch = window.fetch;
+      window.fetch = (url, ...rest) => { if (String(url).endsWith('/export')) exports++; return realFetch(url, ...rest); };
+      document.querySelector('.export-block button').click();
+      await new Promise((r) => setTimeout(r, 300));
+      window.fetch = realFetch;
+      return { questions, exports };
+    })()`);
+    assert(asked.questions.length === 1 && asked.questions[0].includes("link"), JSON.stringify(asked));
+    assert(asked.exports === 0, "downloaded although the person said no");
+  });
+
   await check("activity history records Admin assignments and exports are offered", async () => {
     await open(membersPath);
     assert(await evaluate("!!document.querySelector('.export-block button')"), "no backup export");
@@ -80,15 +97,15 @@ export async function run({ token, open, evaluate, waitFor, screenshot, text, ty
 
   await check("deactivate then reactivate", async () => {
     const row = `[...document.querySelectorAll('.list-row')].find(r => r.textContent.includes('Kham'))`;
-    await evaluate(`${row}.querySelectorAll('button')[1].click()`);
+    await evaluate(`${row}.querySelector('button[aria-label^="Deactivate"]').click()`);
     await waitFor(`${row}?.classList.contains('is-inactive')`);
-    await evaluate(`${row}.querySelectorAll('button')[1].click()`);
+    await evaluate(`${row}.querySelector('button[aria-label^="Reactivate"]').click()`);
     await waitFor(`!${row}?.classList.contains('is-inactive')`);
   });
 
   await check("delete a member (confirm auto-accepted)", async () => {
     await evaluate(`[...document.querySelectorAll('.list-row')]
-      .find(r => r.textContent.includes('Kham')).querySelectorAll('button')[2].click()`);
+      .find(r => r.textContent.includes('Kham')).querySelector('button[aria-label^="Delete"]').click()`);
     await waitFor("![...document.querySelectorAll('.member-name')].some(e => e.textContent === 'Kham')");
   });
 

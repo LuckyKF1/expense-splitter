@@ -72,18 +72,20 @@ function memberRow(group, member, ctx) {
         member.archived && h("span", { class: "badge badge-muted" }, t("members.inactive"))),
       h("span", { class: "row-actions" },
         iconButton("edit", t("members.rename", { name: member.name }), showRenameForm),
+        // A star: outlined to make someone the Admin, filled on the current Admin.
+        !member.archived && iconButton(
+          "star",
+          group.admin_member_id === member.id
+            ? t("members.removeAdmin", { name: member.name })
+            : t("members.makeAdmin", { name: member.name }),
+          () => setAdmin(group.admin_member_id === member.id ? null : member.id),
+          group.admin_member_id === member.id && "admin-on"),
         member.archived
           ? iconButton("restore", `${t("action.restore")}: ${member.name}`,
             () => setArchived(false))
           : iconButton("archive", `${t("action.archive")}: ${member.name}`,
             () => setArchived(true)),
-        iconButton("trash", `${t("action.delete")}: ${member.name}`, remove, "danger"),
-        !member.archived && iconButton(
-          group.admin_member_id === member.id ? "close" : "check",
-          group.admin_member_id === member.id
-            ? t("members.removeAdmin", { name: member.name })
-            : t("members.makeAdmin", { name: member.name }),
-          () => setAdmin(group.admin_member_id === member.id ? null : member.id))));
+        iconButton("trash", `${t("action.delete")}: ${member.name}`, remove, "danger")));
   }
 
   function showRenameForm() {
@@ -184,7 +186,9 @@ function groupCard(group, ctx) {
       h("h3", { class: "card-title" }, t("export.title")),
       h("p", { class: "muted small" }, t("export.hint")),
       h("button", { class: "btn btn-block", type: "button",
-        onClick: exportAction(() => downloadGroupBackup(api, group.token, group.name)) },
+        // The backup contains the group link: whoever gets the file can open and edit the group.
+        onClick: () => confirm(t("export.confirmBackup"))
+          && exportAction(() => downloadGroupBackup(api, group.token, group.name))() },
       t("export.backup")),
       h("button", { class: "btn btn-block", type: "button",
         onClick: exportAction(() => downloadGroupCsv(api, group.token, group.name, "expenses")) },
