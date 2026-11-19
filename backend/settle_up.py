@@ -8,6 +8,7 @@ other hand, are refused until every expense reconciles.
 
 from http import HTTPStatus
 
+from backend import audit
 from backend.errors import ApiError
 from backend.expenses import MAX_AMOUNT
 from backend.groups import find_group
@@ -39,7 +40,7 @@ def get_suggestions(conn, token):
     ]}
 
 
-def record_settlement(conn, token, data):
+def record_settlement(conn, token, data, actor_member_id=None):
     sender = require_int(data, "from_member_id", 1, MAX_ID)
     receiver = require_int(data, "to_member_id", 1, MAX_ID)
     amount = require_int(data, "amount", 1, MAX_AMOUNT)
@@ -65,21 +66,29 @@ def record_settlement(conn, token, data):
             "INSERT INTO settlements (group_id, from_member_id, to_member_id, amount, "
             "paid_at, note) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
             (group["id"], sender, receiver, amount, paid_at, note)).fetchone()[0]
-    return load_settlements(conn, group["id"], settlement_id)[0]
+        result = load_settlements(conn, group["id"], settlement_id)[0]
+        audit.record(conn, group["id"], actor_member_id, "created", "settlement",
+                     settlement_id, after=result)
+    return result
 
 
 def list_settlements(conn, token):
     return load_settlements(conn, find_group(conn, token)["id"])
 
 
-def delete_settlement(conn, token, settlement_id):
+def delete_settlement(conn, token, settlement_id, actor_member_id=None):
     """For correcting mistakes; the payment then no longer counts."""
     group = find_group(conn, token)
+    found = load_settlements(conn, group["id"], settlement_id)
+    if not found:
+        raise ApiError(HTTPStatus.NOT_FOUND, "SETTLEMENT_NOT_FOUND", "Settlement not found")
     with conn:
         deleted = conn.execute("DELETE FROM settlements WHERE id = ? AND group_id = ?",
                                (settlement_id, group["id"])).rowcount
-    if not deleted:
-        raise ApiError(HTTPStatus.NOT_FOUND, "SETTLEMENT_NOT_FOUND", "Settlement not found")
+        if not deleted:
+            raise ApiError(HTTPStatus.NOT_FOUND, "SETTLEMENT_NOT_FOUND", "Settlement not found")
+        audit.record(conn, group["id"], actor_member_id, "deleted", "settlement",
+                     settlement_id, before=found[0])
 
 
 def load_settlements(conn, group_id, settlement_id=None):

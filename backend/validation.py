@@ -40,8 +40,6 @@ def clean_text(data, field, max_length):
         raise validation_error(field, "required")
     if not isinstance(value, str):
         raise validation_error(field, "not_string")
-    # Lone surrogates cannot be stored as UTF-8; control characters inside
-    # the text are refused; invisible formatting characters are dropped.
     if any(unicodedata.category(ch) == "Cs" for ch in value):
         raise validation_error(field, "invalid_characters")
     text = remove_invisible(unicodedata.normalize("NFC", value)).strip()
@@ -55,13 +53,7 @@ def clean_text(data, field, max_length):
 
 
 def remove_invisible(text):
-    """Drop zero-width spaces, BOMs, direction marks, soft hyphens, etc.
-
-    Names pasted from chat apps often carry them; left in, "luck" and
-    "luck" + U+200B look identical but would be two different members.
-    The zero-width joiner is kept only between two emoji, where it is part
-    of the picture (family, flags, professions).
-    """
+    """Drop formatting characters, keeping joiners inside emoji sequences."""
     kept = []
     for i, ch in enumerate(text):
         if unicodedata.category(ch) != "Cf":
@@ -73,8 +65,18 @@ def remove_invisible(text):
     return "".join(kept)
 
 
+def optional_bool(data, field):
+    """Return data[field] if it is a real JSON boolean, None if absent."""
+    if field not in data:
+        return None
+    value = data[field]
+    if not isinstance(value, bool):  # reject 0/1 and "true"
+        raise validation_error(field, "not_boolean")
+    return value
+
+
 def optional_text(data, field, max_length):
-    """Like clean_text, but a missing, null or blank value becomes ""."""
+    """Return an optional text value as clean text, or an empty string."""
     value = data.get(field)
     if value is None or (isinstance(value, str) and not value.strip()):
         return ""
@@ -87,10 +89,7 @@ def is_strict_int(value):
 
 
 def require_int(data, field, minimum, maximum):
-    """Return data[field] as an int within [minimum, maximum].
-
-    Floats are rejected outright (even 1000.0): money is whole Kip.
-    """
+    """Return data[field] as an integer within the inclusive range."""
     value = data.get(field)
     if value is None:
         raise validation_error(field, "required")
@@ -102,26 +101,16 @@ def require_int(data, field, minimum, maximum):
 
 
 def require_date(data, field):
-    """Return data[field] if it is a real date (YYYY-MM-DD) in 2000-2099."""
+    """Return a real YYYY-MM-DD date between 2000 and 2099."""
     value = data.get(field)
     if value is None:
         raise validation_error(field, "required")
     if not isinstance(value, str) or not DATE_PATTERN.fullmatch(value):
         raise validation_error(field, "invalid_date")
     try:
-        day = date.fromisoformat(value)  # rejects 2026-02-30
+        day = date.fromisoformat(value)
     except ValueError:
         raise validation_error(field, "invalid_date") from None
     if not MIN_DATE <= day <= MAX_DATE:
         raise validation_error(field, "out_of_range")
-    return value
-
-
-def optional_bool(data, field):
-    """Return data[field] if it is a real JSON boolean, None if absent."""
-    if field not in data:
-        return None
-    value = data[field]
-    if not isinstance(value, bool):  # reject 0/1 and "true"
-        raise validation_error(field, "not_boolean")
     return value

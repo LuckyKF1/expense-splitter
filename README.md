@@ -43,6 +43,19 @@ works on this computer.)
 Every relay terminates HTTPS and can see traffic, this computer must stay
 on, and anyone with a group link can view and edit that group.
 
+Each group can designate one active member as its Admin. The Admin label is
+for coordination: payment controls are shown on devices that selected that
+member under “Who are you?”. It is not authentication or an access-control
+boundary; anyone with the group link can still edit the group or call its API.
+
+The Members page can download a JSON backup (including the group link and
+change history), expense CSV, or payment CSV. It also links to the group
+activity history, which records successful group, member, expense, and payment
+changes with before/after snapshots. The actor is the member selected on that
+device; because there is no login, this attribution is only a convenience and
+can be changed or spoofed by anyone with the group link. Deleting a group
+deletes its activity history too.
+
 ## Test
 
 ```bash

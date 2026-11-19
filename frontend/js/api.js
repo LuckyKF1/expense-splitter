@@ -1,6 +1,8 @@
 // Thin wrapper around fetch. All network access goes through here so
 // error handling stays consistent across the app.
 
+import { whoAmI } from "./storage.js";
+
 export class ApiError extends Error {
   constructor(status, code, message, details = {}) {
     super(message);
@@ -12,6 +14,9 @@ export class ApiError extends Error {
 
 async function request(method, path, body) {
   const options = { method, headers: {} };
+  const token = path.match(/^\/groups\/([^/?]+)/)?.[1];
+  const actor = token ? whoAmI(decodeURIComponent(token)) : null;
+  if (actor !== null) options.headers["X-Actor-Member-ID"] = String(actor);
   if (body !== undefined) {
     options.headers["Content-Type"] = "application/json";
     options.body = JSON.stringify(body);
@@ -42,6 +47,10 @@ export const api = {
   createGroup: (name) => request("POST", "/groups", { name }),
   getGroup: (token) => request("GET", group(token)),
   renameGroup: (token, name) => request("PATCH", group(token), { name }),
+  setGroupAdmin: (token, memberId) =>
+    request("PATCH", `${group(token)}/admin`, { member_id: memberId }),
+  getActivity: (token) => request("GET", `${group(token)}/activity`),
+  exportGroup: (token) => request("GET", `${group(token)}/export`),
   deleteGroup: (token) => request("DELETE", group(token)),
 
   addMember: (token, name) => request("POST", `${group(token)}/members`, { name }),

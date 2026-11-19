@@ -5,7 +5,9 @@ import { addMembers, BRIEF_PAID, BRIEF_PEOPLE, payersFrom } from "../seed.mjs";
 export const description = "summary and settle up, the brief's example end to end";
 
 export async function setup(api) {
-  return { ids: await addMembers(api, BRIEF_PEOPLE) };
+  const ids = await addMembers(api, BRIEF_PEOPLE);
+  await api("/admin", "PATCH", { member_id: ids.luck });
+  return { ids };
 }
 
 export async function run({ token, api, ids, open, evaluate, waitFor, screenshot, text, check, assert }) {
@@ -46,6 +48,8 @@ export async function run({ token, api, ids, open, evaluate, waitFor, screenshot
     await open(`${g}/settle`);
     assert(await evaluate("!!document.querySelector('.banner-warning')"), "no banner");
     assert((await text(".transfer-row")).length === 0, "suggestions shown while unbalanced");
+    assert(!(await evaluate("!!document.querySelector('.record-card, .transfer-action, .history-row .btn-icon-danger')")),
+      "payment controls shown before identifying as admin");
   });
 
   await check("fix via the banner link: summary becomes balanced", async () => {
@@ -61,6 +65,8 @@ export async function run({ token, api, ids, open, evaluate, waitFor, screenshot
   });
 
   await check("settle: the 6 suggested transfers from the brief", async () => {
+    await evaluate(`localStorage.setItem('expense-splitter:me',
+      JSON.stringify({ [${JSON.stringify(token)}]: ${ids.luck} }))`);
     await open(`${g}/settle`);
     const rows = await evaluate(`[...document.querySelectorAll('.transfer-row')].map(r =>
       r.querySelector('.transfer-people').textContent.replace(/\\s+/g, ' ').trim() + ' = ' +

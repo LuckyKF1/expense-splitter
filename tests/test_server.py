@@ -32,9 +32,10 @@ class ServerTestCase(unittest.TestCase):
         cls.httpd.server_close()
         cls.tmp.cleanup()
 
-    def request(self, method, path, body=None):
+    def request(self, method, path, body=None, headers=None):
         """Return (status, headers, raw_body) without raising on 4xx/5xx."""
-        req = urllib.request.Request(self.base + path, method=method, data=body)
+        req = urllib.request.Request(self.base + path, method=method, data=body,
+                                     headers=headers or {})
         try:
             with urllib.request.urlopen(req) as resp:
                 return resp.status, resp.headers, resp.read()

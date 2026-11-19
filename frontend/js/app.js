@@ -9,6 +9,7 @@ import { rememberGroup } from "./storage.js";
 import { getTheme, nextTheme, setTheme } from "./theme.js";
 import { loadExpenseForm, renderExpenseForm } from "./views/expense-form.js";
 import { loadExpenses, renderExpenses } from "./views/expenses.js";
+import { loadActivity, renderActivity } from "./views/activity.js";
 import { renderHome } from "./views/home.js";
 import { renderMembers } from "./views/members.js";
 import { loadSettle, renderSettle } from "./views/settle.js";
@@ -28,6 +29,8 @@ const NAV_ITEMS = [
 // instead of two (this matters a lot over the tunnel).
 const ROUTES = [
   { pattern: new RegExp("^/$"), view: renderHome },
+  { pattern: new RegExp(`^/g/${TOKEN}/activity/?$`), view: renderActivity,
+    load: loadActivity, nav: "members" },
   { pattern: new RegExp(`^/g/${TOKEN}/?$`), view: renderSummary, load: loadSummary, nav: "summary" },
   { pattern: new RegExp(`^/g/${TOKEN}/expenses/?$`), view: renderExpenses, load: loadExpenses,
     nav: "expenses" },

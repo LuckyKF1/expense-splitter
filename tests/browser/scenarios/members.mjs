@@ -42,6 +42,33 @@ export async function run({ token, open, evaluate, waitFor, screenshot, text, ty
     assert(error.includes("already has that name"), error);
   });
 
+  await check("assigning another Admin replaces the previous one", async () => {
+    const row = (name) => `[...document.querySelectorAll('.list-row')]
+      .find(r => r.querySelector('.member-name')?.textContent === ${JSON.stringify(name)})`;
+    const hasAdmin = (name) => evaluate(`${row(name)}?.querySelector('.badge')?.textContent === 'Admin'`);
+    const adminButton = (name) => `${row(name)}?.querySelector('.row-actions button[aria-label*="Admin"]')`;
+    await evaluate(`${adminButton("kham")}.click()`);
+    await waitFor(`${row("kham")}?.querySelector('.list-main .badge')?.textContent === 'Admin'`);
+    assert(await hasAdmin("kham"), "first Admin was not assigned");
+    await evaluate(`${adminButton("luck")}.click()`);
+    await waitFor(`${row("luck")}?.querySelector('.badge')?.textContent === 'Admin'`);
+    assert(!(await hasAdmin("kham")), "more than one Admin remained assigned");
+    await evaluate(`${adminButton("kham")}.click()`);
+    await waitFor(`${row("kham")}?.querySelector('.list-main .badge')?.textContent === 'Admin'`);
+  });
+
+  await check("activity history records Admin assignments and exports are offered", async () => {
+    await open(membersPath);
+    assert(await evaluate("!!document.querySelector('.export-block button')"), "no backup export");
+    assert(await evaluate("document.querySelectorAll('.export-block button').length === 3"),
+      "expected JSON, expenses CSV and payments CSV exports");
+    await open(`/g/${token}/activity`);
+    await waitFor("document.querySelectorAll('.activity-row').length >= 1");
+    assert((await text(".activity-row")).some((line) => line.includes("Admin")),
+      "Admin assignment missing from activity");
+    await open(membersPath);
+  });
+
   await check("rename a member inline", async () => {
     await evaluate(`[...document.querySelectorAll('.list-row')]
       .find(r => r.textContent.includes('kham')).querySelector('button').click()`);

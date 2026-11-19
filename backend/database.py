@@ -95,6 +95,30 @@ MIGRATIONS = [
     CREATE UNIQUE INDEX ux_members_group_name_nocase
         ON members (group_id, name COLLATE NOCASE);
     """,
+    # v3: one optional, designated group admin. This is a UI convenience,
+    # not an authorization boundary; the shared group token still grants access.
+    """
+    ALTER TABLE groups
+        ADD COLUMN admin_member_id INTEGER REFERENCES members (id) ON DELETE SET NULL;
+    """,
+    # v4: keep a readable, immutable trail of each successful data change.
+    f"""
+    CREATE TABLE audit_events (
+        id               INTEGER PRIMARY KEY,
+        group_id         INTEGER NOT NULL REFERENCES groups (id) ON DELETE CASCADE,
+        actor_member_id  INTEGER,
+        actor_name       TEXT,
+        action           TEXT    NOT NULL CHECK (action IN ('created', 'updated', 'deleted')),
+        entity_type      TEXT    NOT NULL CHECK (
+            entity_type IN ('group', 'member', 'expense', 'settlement')),
+        entity_id        TEXT,
+        before_json      TEXT,
+        after_json       TEXT,
+        created_at       TEXT    NOT NULL DEFAULT {UTC_NOW}
+    ) STRICT;
+
+    CREATE INDEX idx_audit_group_id ON audit_events (group_id, id);
+    """,
 ]
 
 

@@ -6,6 +6,7 @@ export const description = "repeated taps on a slow connection save once";
 
 export async function setup(api) {
   const ids = await addMembers(api, ["luck", "fy"]);
+  await api("/admin", "PATCH", { member_id: ids.luck });
   await api("/expenses", "POST", { description: "Dinner", amount: 200000, spent_at: "2026-11-11",
     payers: [{ member_id: ids.luck, amount: 200000 }], participants: [ids.luck, ids.fy] });
   return { ids };
@@ -17,6 +18,9 @@ export async function run({ token, api, ids, open, evaluate, waitFor, throttle, 
   const settled = (selector) => waitFor(`(() => { const b = document.querySelector(${JSON.stringify(selector)});
     return !b || !b.disabled; })()`, 15000);
 
+  await open(`/g/${token}`);
+  await evaluate(`localStorage.setItem('expense-splitter:me',
+    JSON.stringify({ [${JSON.stringify(token)}]: ${ids.luck} }))`);
   await throttle(800);
   await open(`/g/${token}/settle`, 360, 780, { timeout: 15000 });
 

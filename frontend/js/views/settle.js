@@ -24,18 +24,26 @@ export async function renderSettle(root, ctx) {
   root.append(h("h1", { class: "page-title" }, t("settle.title")));
   if (!group.members.some((m) => !m.archived)) return root.append(needMembersCard(group.token));
   const { suggestions, history } = ctx.data;
+  const isAdmin = group.admin_member_id !== null
+    && whoAmI(group.token) === group.admin_member_id;
 
   root.append(h("div", { class: "grid grid-main-side" },
     h("div", { class: "stack-lg" },
+      !isAdmin && h("p", { class: "muted small" },
+        group.admin_member_id === null
+          ? t("settle.noAdmin")
+          : t("settle.adminHint", {
+            name: group.members.find((member) => member.id === group.admin_member_id)?.name ?? "",
+          })),
       suggestions.blocked
         ? unbalancedBanner(group.token, suggestions.blocked.unbalanced_expenses,
           suggestions.blocked.balance_total)
-        : suggestionsCard(suggestions.transfers, group, ctx),
-      recordCard(group, ctx)),
-    historyCard(history, group, ctx)));
+        : suggestionsCard(suggestions.transfers, group, ctx, isAdmin),
+      isAdmin && recordCard(group, ctx)),
+    historyCard(history, group, ctx, isAdmin)));
 }
 
-function suggestionsCard(transfers, group, ctx) {
+function suggestionsCard(transfers, group, ctx, isAdmin) {
   const me = whoAmI(group.token); // highlight the transfers that involve you
   const card = h("section", { class: "card" },
     h("h2", { class: "card-title" }, t("settle.suggestionsTitle")));
@@ -53,7 +61,7 @@ function suggestionsCard(transfers, group, ctx) {
           h("span", { class: "transfer-arrow" }, " ", t("settle.pays"), " "),
           h("strong", {}, transfer.to_name)),
         h("span", { class: "amount transfer-amount" }, formatKip(transfer.amount)),
-        h("button", {
+        isAdmin && h("button", {
           class: "btn btn-small transfer-action", type: "button",
           onClick: (event) => markPaid(transfer, group, ctx, event.currentTarget),
         }, icon("check"), t("settle.markPaid"))))));
@@ -140,7 +148,7 @@ function recordCard(group, ctx) {
       submit));
 }
 
-function historyCard(history, group, ctx) {
+function historyCard(history, group, ctx, isAdmin) {
   const card = h("section", { class: "card" },
     h("h2", { class: "card-title" }, t("settle.historyTitle")));
   if (history.length === 0) {
@@ -157,7 +165,7 @@ function historyCard(history, group, ctx) {
         h("span", { class: "muted small" },
           [formatDate(payment.paid_at, getLang()), payment.note].filter(Boolean).join(" · "))),
       h("span", { class: "amount" }, formatKip(payment.amount)),
-      h("button", {
+      isAdmin && h("button", {
         class: "btn-icon btn-icon-danger", type: "button",
         "aria-label": t("settle.deleteLabel", { from: payment.from_name, to: payment.to_name }),
         title: t("action.delete"),
