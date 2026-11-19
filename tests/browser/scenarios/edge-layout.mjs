@@ -25,7 +25,7 @@ export async function setup(api) {
 export async function run({ token, api, ids, open, evaluate, check, assert, screenshot }) {
   const g = `/g/${token}`;
   const pages = { summary: g, expenses: `${g}/expenses`, form: `${g}/expenses/new`,
-    settle: `${g}/settle`, members: `${g}/members` };
+    settle: `${g}/settle`, members: `${g}/members`, activity: `${g}/activity` };
 
   // Which elements stick out past the right edge (for a useful failure message).
   const overflow = () => evaluate(`(() => {

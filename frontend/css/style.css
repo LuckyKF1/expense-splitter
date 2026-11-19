@@ -522,9 +522,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .share-block { padding-top: var(--space-2); border-top: 1px solid var(--color-border); }
 .export-block { padding-top: var(--space-2); border-top: 1px solid var(--color-border); }
 .activity-row { align-items: flex-start; flex-direction: column; }
+.activity-list { gap: 0; padding: var(--space-1) var(--space-4); }
+/* Long descriptions and names wrap instead of widening the page. */
+.activity-row .list-main { width: 100%; }
+.activity-row .list-main > * { min-width: 0; overflow-wrap: anywhere; }
 .activity-details { width: 100%; padding-left: var(--space-2); }
-.activity-details summary { color: var(--color-primary); cursor: pointer; font-size: 13px; }
-.activity-json { max-width: 100%; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.activity-details summary { color: var(--color-primary); cursor: pointer; font-size: 13px; min-height: var(--tap); display: flex; align-items: center; }
+.change-list { margin: 0; padding: 0 0 var(--space-2) var(--space-2); list-style: none; font-size: 14px; color: var(--color-muted); }
+.change-list li { overflow-wrap: anywhere; }
+.change-field { color: var(--color-text); font-weight: 600; }
 
 /* ---- Page header & floating action ------------------------------------------------------ */
 .page-header {

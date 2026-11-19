@@ -70,6 +70,13 @@ export function formatDay(iso, lang) {
   return `${(lang === "lo" ? LAO_WEEKDAYS : EN_WEEKDAYS)[weekday]} ${formatDate(iso, lang)}`;
 }
 
+/** Server timestamp (UTC, "2026-11-18T08:20:27Z") as local date and time. */
+export function formatDateTime(iso, lang) {
+  const moment = new Date(iso);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${formatDate(todayIso(moment), lang)} ${pad(moment.getHours())}:${pad(moment.getMinutes())}`;
+}
+
 /** Dates the server accepts (backend/validation.py MIN_DATE/MAX_DATE). */
 export const DATE_RANGE = { min: "2000-01-01", max: "2099-12-31" };
 
